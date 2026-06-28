@@ -1,39 +1,81 @@
 const express = require('express')
 const router = express.Router()
-const db = require('../db')
+const { ObjectId } = require('mongodb')
+const { getDb } = require('../db')
 
-function getClientIp(req) {
-  const forwarded = req.headers['x-forwarded-for']
-  if (forwarded) return forwarded.split(',')[0].trim()
-  return req.ip || req.socket.remoteAddress
+// Solo se acepta el correo institucional de la ESPE (1 voto por correo)
+const EMAIL_RE = /^[^\s@]+@espe\.edu\.ec$/i
+
+function normEmail(e) {
+  return (e || '').trim().toLowerCase()
+}
+
+// Calcula los resultados (equipos + votos por equipo + total)
+async function computeResults(db) {
+  const teams = await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray()
+  const counts = await db
+    .collection('votes')
+    .aggregate([{ $group: { _id: '$teamId', count: { $sum: 1 } } }])
+    .toArray()
+
+  const countMap = {}
+  counts.forEach(c => { countMap[c._id] = c.count })
+
+  const results = teams.map(t => ({
+    id: t._id.toString(),
+    name: t.name,
+    logo: t.logo || '',
+    photo: t.photo || '',
+    description: t.description || '',
+    eje: t.eje || '',
+    members: t.members || [],
+    votes: countMap[t._id.toString()] || 0,
+  }))
+  const total = results.reduce((sum, r) => sum + r.votes, 0)
+  return { results, total }
 }
 
 router.post('/', async (req, res) => {
   const { teamId } = req.body
-  const ip = getClientIp(req)
+  const email = normEmail(req.body.email)
 
   try {
-    const { rows: settings } = await db.query("SELECT value FROM settings WHERE key = 'voting_active'")
-    if (settings[0]?.value !== 'true') {
+    const db = getDb()
+
+    const settings = await db.collection('settings').findOne({ key: 'voting_active' })
+    if (settings?.value !== 'true') {
       return res.status(403).json({ error: 'La votación no está activa' })
     }
 
-    const { rows: existing } = await db.query('SELECT id FROM votes WHERE ip = $1', [ip])
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Ya has votado anteriormente' })
+    if (!EMAIL_RE.test(email)) {
+      return res.status(400).json({ error: 'Debes usar tu correo institucional (@espe.edu.ec)' })
     }
 
-    await db.query('INSERT INTO votes (team_id, ip) VALUES ($1, $2)', [teamId, ip])
+    const existing = await db.collection('votes').findOne({ email })
+    if (existing) {
+      return res.status(409).json({ error: 'Este correo ya emitió su voto' })
+    }
 
-    const { rows: results } = await db.query(`
-      SELECT t.id, t.name, t.photo, t.description, COUNT(v.id)::int as votes
-      FROM teams t LEFT JOIN votes v ON t.id = v.team_id
-      GROUP BY t.id ORDER BY t.id
-    `)
+    // Validar que el equipo exista
+    if (!teamId || !ObjectId.isValid(teamId)) {
+      return res.status(400).json({ error: 'Equipo inválido' })
+    }
+    const team = await db.collection('teams').findOne({ _id: new ObjectId(teamId) })
+    if (!team) {
+      return res.status(400).json({ error: 'Equipo inválido' })
+    }
 
-    const total = results.reduce((sum, r) => sum + r.votes, 0)
-    const data = { results, total }
+    try {
+      await db.collection('votes').insertOne({ teamId, email, votedAt: new Date() })
+    } catch (e) {
+      // Índice único en email -> ya votó (condición de carrera)
+      if (e.code === 11000) {
+        return res.status(409).json({ error: 'Este correo ya emitió su voto' })
+      }
+      throw e
+    }
 
+    const data = await computeResults(db)
     req.app.get('io').emit('vote:update', data)
 
     res.json({ success: true, ...data })
@@ -45,23 +87,22 @@ router.post('/', async (req, res) => {
 
 router.get('/results', async (req, res) => {
   try {
-    const { rows: results } = await db.query(`
-      SELECT t.id, t.name, t.photo, t.description, COUNT(v.id)::int as votes
-      FROM teams t LEFT JOIN votes v ON t.id = v.team_id
-      GROUP BY t.id ORDER BY t.id
-    `)
-    const total = results.reduce((sum, r) => sum + r.votes, 0)
-    res.json({ results, total })
+    const data = await computeResults(getDb())
+    res.json(data)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
 
+// Verifica si un correo ya votó (para mostrar el estado al cargar)
 router.get('/check', async (req, res) => {
-  const ip = getClientIp(req)
+  const email = normEmail(req.query.email)
+  if (!EMAIL_RE.test(email)) {
+    return res.json({ hasVoted: false, teamId: null })
+  }
   try {
-    const { rows } = await db.query('SELECT id, team_id FROM votes WHERE ip = $1', [ip])
-    res.json({ hasVoted: rows.length > 0, teamId: rows[0]?.team_id || null })
+    const vote = await getDb().collection('votes').findOne({ email })
+    res.json({ hasVoted: !!vote, teamId: vote?.teamId || null })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

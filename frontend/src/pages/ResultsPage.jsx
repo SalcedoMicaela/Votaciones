@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import socket from '../socket'
+import { Trophy, Medal, Award, Crown } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const MEDALS = {
-  0: { emoji: '\uD83E\uDD47', bg: 'bg-yellow-50 border-yellow-300', bar: 'bg-gradient-to-r from-yellow-400 to-yellow-500', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.25)]' },
-  1: { emoji: '\uD83E\uDD48', bg: 'bg-slate-50 border-slate-300', bar: 'bg-gradient-to-r from-slate-400 to-slate-500', glow: '' },
-  2: { emoji: '\uD83E\uDD49', bg: 'bg-amber-50 border-amber-300', bar: 'bg-gradient-to-r from-amber-500 to-amber-600', glow: '' },
+  0: { Icon: Trophy, color: 'text-yellow-500', bg: 'bg-yellow-50 border-yellow-300', bar: 'bg-gradient-to-r from-yellow-400 to-yellow-500', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.25)]' },
+  1: { Icon: Medal, color: 'text-slate-400', bg: 'bg-slate-50 border-slate-300', bar: 'bg-gradient-to-r from-slate-400 to-slate-500', glow: '' },
+  2: { Icon: Award, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-300', bar: 'bg-gradient-to-r from-amber-500 to-amber-600', glow: '' },
 }
 
 function PodiumCard({ team, medal, size, totalVotes, maxV }) {
@@ -18,9 +19,11 @@ function PodiumCard({ team, medal, size, totalVotes, maxV }) {
   const barWid = totalVotes > 0 ? (team.votes / maxV) * 100 : 0
   return (
     <div className={`rounded-2xl border-2 p-4 sm:p-6 text-center transition-all duration-700 ${medal.bg} ${medal.glow} ${size === 'lg' ? 'scale-100' : 'scale-90 sm:scale-95'}`}>
-      <div className={`text-4xl mb-2 ${size === 'lg' ? 'sm:text-5xl' : 'sm:text-4xl'}`}>{medal.emoji}</div>
-      {team.photo ? (
-        <img src={team.photo} alt={team.name} className={`${imgSize} mx-auto object-cover rounded-full ring-4 ring-white shadow-lg mb-3`} />
+      <div className="mb-2 flex justify-center">
+        <medal.Icon className={`${size === 'lg' ? 'w-10 h-10' : 'w-8 h-8'} ${medal.color}`} strokeWidth={2} />
+      </div>
+      {(team.logo || team.photo) ? (
+        <img src={team.logo || team.photo} alt={team.name} className={`${imgSize} mx-auto object-cover rounded-full ring-4 ring-white shadow-lg mb-3`} />
       ) : (
         <div className={`${imgSize} mx-auto rounded-full ring-4 ring-white shadow-lg mb-3 bg-gray-200 flex items-center justify-center text-gray-400 font-bold text-3xl`}>
           {team.name.charAt(0).toUpperCase()}
@@ -28,7 +31,7 @@ function PodiumCard({ team, medal, size, totalVotes, maxV }) {
       )}
       <h3 className={`font-extrabold ${textSize} mb-1 truncate px-2`}>{team.name}</h3>
       <div className="flex items-center justify-center gap-2 text-sm mb-3">
-        <span className="font-bold text-indigo-600">{team.votes}</span>
+        <span className="font-bold text-espe-700">{team.votes}</span>
         <span className="text-gray-400">votos</span>
         <span className="text-gray-500">({pct}%)</span>
       </div>
@@ -52,7 +55,11 @@ export default function ResultsPage() {
       setResults(data.results)
       setTotal(data.total)
     })
-    return () => socket.off('vote:update')
+    socket.on('team:update', loadResults)
+    return () => {
+      socket.off('vote:update')
+      socket.off('team:update', loadResults)
+    }
   }, [])
 
   async function loadResults() {
@@ -74,7 +81,7 @@ export default function ResultsPage() {
     <div>
       <h1 className="text-3xl font-bold text-center mb-1">Resultados en Vivo</h1>
       <p className="text-center text-gray-500 mb-6">
-        Total de votos: <span className="font-bold text-indigo-600">{total}</span>
+        Total de votos: <span className="font-bold text-espe-700">{total}</span>
       </p>
 
       {sorted.length === 0 && (
@@ -88,7 +95,7 @@ export default function ResultsPage() {
             <PodiumCard team={top3[2]} medal={MEDALS[2]} size="sm" totalVotes={total} maxV={maxV} />
           </div>
           <div className="flex-1 max-w-[240px] z-10 relative -top-3">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-3xl select-none">&#x1F451;</div>
+            <div className="absolute -top-7 left-1/2 -translate-x-1/2 select-none"><Crown className="w-7 h-7 text-yellow-500 fill-yellow-400" /></div>
             <PodiumCard team={top3[0]} medal={MEDALS[0]} size="lg" totalVotes={total} maxV={maxV} />
           </div>
           <div className="flex-1 max-w-[200px]">
@@ -109,7 +116,7 @@ export default function ResultsPage() {
       {rest.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold text-gray-500 mb-4 flex items-center gap-2">
-            <span className="w-1 h-5 bg-indigo-500 rounded-full inline-block"></span>
+            <span className="w-1 h-5 bg-espe-500 rounded-full inline-block"></span>
             Demás participantes
           </h2>
           <div className="space-y-3">
@@ -120,8 +127,8 @@ export default function ResultsPage() {
               return (
                 <div key={team.id} className="bg-white rounded-xl border border-gray-200 border-l-4 border-l-gray-300 p-4 flex items-center gap-4 transition-all hover:shadow-md">
                   <span className="text-lg font-bold text-gray-400 w-8 text-center">#{position}</span>
-                  {team.photo && (
-                    <img src={team.photo} alt={team.name} className="h-11 w-11 object-cover rounded-full ring-2 ring-white shadow-sm" />
+                  {(team.logo || team.photo) && (
+                    <img src={team.logo || team.photo} alt={team.name} className="h-11 w-11 object-cover rounded-full ring-2 ring-white shadow-sm" />
                   )}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-800 truncate">{team.name}</h3>
@@ -129,11 +136,11 @@ export default function ResultsPage() {
                   </div>
                   <div className="hidden sm:block w-32 md:w-48 bg-gray-100 rounded-full h-4 overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-indigo-400 to-indigo-500"
+                      className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-espe-400 to-espe-600"
                       style={{ width: `${Math.max(barWidth, 2)}%` }}
                     />
                   </div>
-                  <span className="text-sm font-semibold text-indigo-600 min-w-[3rem] text-right">{percentage}%</span>
+                  <span className="text-sm font-semibold text-espe-700 min-w-[3rem] text-right">{percentage}%</span>
                 </div>
               )
             })}

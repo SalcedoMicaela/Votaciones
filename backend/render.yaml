@@ -5,7 +5,9 @@ services:
     buildCommand: npm install
     startCommand: node server.js
     envVars:
-      - key: DATABASE_URL
+      - key: MONGO
+        sync: false
+      - key: MONGO_DB
         sync: false
       - key: ADMIN_PASSWORD
         sync: false

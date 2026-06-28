@@ -3,7 +3,7 @@ const http = require('http')
 const { Server } = require('socket.io')
 const cors = require('cors')
 require('dotenv').config()
-const { testConnection } = require('./db')
+const { connect } = require('./db')
 
 const app = express()
 const server = http.createServer(app)
@@ -17,6 +17,7 @@ app.set('io', io)
 
 app.use('/api/admin', require('./routes/admin'))
 app.use('/api/vote', require('./routes/vote'))
+app.use('/api/upload', require('./routes/upload'))
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
@@ -24,7 +25,7 @@ app.get('/api/health', (req, res) => {
 
 const PORT = process.env.PORT || 3000
 
-testConnection().then(() => {
+connect().then(() => {
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
   })

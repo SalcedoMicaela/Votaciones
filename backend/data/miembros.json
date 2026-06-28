@@ -1,0 +1,527 @@
+[
+  {
+    "name": "RAÍZ",
+    "members": [
+      {
+        "nombre": "CAMPOVERDE DEMERA ELSA AMNABEL",
+        "carrera": "AGROPECUARIA",
+        "correo": "eacampoverde@espe.edu.ec"
+      },
+      {
+        "nombre": "MÉNDEZ NARVÁEZ JOEL ULPIANO",
+        "carrera": "AGROPECUARIA",
+        "correo": "jumendez@espe.edu.ec"
+      },
+      {
+        "nombre": "QUIROZ GAVILEMA JOSSELYN MILENA",
+        "carrera": "AGROPECUARIA",
+        "correo": "jmquiroz5@espe.edu.ec"
+      },
+      {
+        "nombre": "ZULETA ANDRADE JOHAN ARIEL",
+        "carrera": "MERCADOTECNIA",
+        "correo": "jazuleta2@espe.edu.ec"
+      },
+      {
+        "nombre": "MANZABA ARIAS ALIZON MAYERLI",
+        "carrera": "AGROPECUARIA",
+        "correo": "ammanzaba@espe.edu.ec"
+      },
+      {
+        "nombre": "SACASARI CALVA MAYERLI SALOMÉ",
+        "carrera": "TURISMO",
+        "correo": "mssacasari@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "InverNova",
+    "members": [
+      {
+        "nombre": "ALCOCER VASCONEZ MARIA JOSE",
+        "carrera": "CONTABILIDAD Y AUDITORÍA",
+        "correo": "mjalcocer@espe.edu.ec"
+      },
+      {
+        "nombre": "PILLAJO VEGA DIANA CAROLINA",
+        "carrera": "CONTABILIDAD Y AUDITORÍA",
+        "correo": "dcpillajo1@espe.edu.ec"
+      },
+      {
+        "nombre": "SALAZAR GRANDA KEVIN FERNANDO",
+        "carrera": "CONTABILIDAD Y AUDITORÍA",
+        "correo": "kfsalazar3@espe.edu.ec"
+      },
+      {
+        "nombre": "TUQUEREZ CHORLANGO HAMILTON RODOLFO",
+        "carrera": "CONTABILIDAD Y AUDITORÍA",
+        "correo": "hrtuquerez@espe.edu.ec"
+      },
+      {
+        "nombre": "AGUIRRE FLORES MARIA PAULA",
+        "carrera": "AGROPECUARIA",
+        "correo": "mpaguirre5@espe.edu.ec"
+      },
+      {
+        "nombre": "GRANDA VELASQUEZ CARLOS JAVIER",
+        "carrera": "SOFTWARE",
+        "correo": "cjgranda1@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "Robot Soccer",
+    "members": [
+      {
+        "nombre": "RODRIGUEZ LLERENA ANGELA RUBI",
+        "carrera": "BIOTECNOLOGÍA",
+        "correo": "arrodriguez9@espe.edu.ec"
+      },
+      {
+        "nombre": "GAVILANES ZAMBRANO JEFFERSON LENIN",
+        "carrera": "MECATRÓNICA",
+        "correo": "jlgavilanes1@espe.edu.ec"
+      },
+      {
+        "nombre": "TRÁVEZ PALACIOS DAYNA MAYERLY",
+        "carrera": "EDUCACIÓN INICIAL",
+        "correo": "dmtravez@espe.edu.ec"
+      },
+      {
+        "nombre": "HIDALGO RAMÍREZ SOFIA ALEJANDRA",
+        "carrera": "TURISMO",
+        "correo": "sahidalgo5@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "NET GUARDIAN SAE",
+    "members": [
+      {
+        "nombre": "PILLAJO ANDRANGO OSWALDO ALEXANDER",
+        "carrera": "TELECOMUNICACIONES",
+        "correo": "oapillajo2@espe.edu.ec"
+      },
+      {
+        "nombre": "PARRA CASILLAS JENNIFER MISHEL",
+        "carrera": "BIOTECNOLOGIA",
+        "correo": "jmparra2@espe.edu.ec"
+      },
+      {
+        "nombre": "DELGADO CARRILLO ANDREA NATHALY",
+        "carrera": "CIVIL",
+        "correo": "andelgado7@espe.edu.ec"
+      },
+      {
+        "nombre": "ILLAPA TOAPANTA OSCAR IVAN",
+        "carrera": "TELECOMUNICACIONES",
+        "correo": "oiillapa@espe.edu.ec"
+      },
+      {
+        "nombre": "PILATASIG PILAGUANO LUIS LEONARDO",
+        "carrera": "MECATRONICA",
+        "correo": "llpilatasig@espe.edu.ec"
+      },
+      {
+        "nombre": "GAGÑAY LUTUALA EDISON GABRIEL",
+        "carrera": "MECÁNICA",
+        "correo": "eggagnay@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "VanTECH",
+    "members": [
+      {
+        "nombre": "GARCÍA TOQUETON JONATHAN DAVID",
+        "carrera": "SOFTWARE",
+        "correo": "jdgarcia15@espe.edu.ec"
+      },
+      {
+        "nombre": "PANCHEZ JACOME DARWIN JAVIER",
+        "carrera": "SOFTWARE",
+        "correo": "djpanchez@espe.edu.ec"
+      },
+      {
+        "nombre": "LLUMIGUSIN CAIZA MATEO SEBASTIAN",
+        "carrera": "SOFTWARE",
+        "correo": "msllumigusin@espe.edu.ec"
+      },
+      {
+        "nombre": "PROAÑO VÁSCONEZ JOSÉ IGNACIO",
+        "carrera": "SOFTWARE",
+        "correo": "jiproano1@espe.edu.ec"
+      },
+      {
+        "nombre": "CASIGNIA RUIZ DIEGO ALEJANDRO",
+        "carrera": "SOFTWARE",
+        "correo": "dacasignia@espe.edu.ec"
+      },
+      {
+        "nombre": "GUALOTO CHÁVEZ WILLIAM XAVIER",
+        "carrera": "CIVIL",
+        "correo": "wxgualoto@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "Smart Tag",
+    "members": [
+      {
+        "nombre": "ALVAREZ RAMIREZ MICHELLE ESTEFANIA",
+        "carrera": "ING. TELECOMUNICACIONES",
+        "correo": "mealvarez12@espe.edu.ec"
+      },
+      {
+        "nombre": "EIVAR DAGUA JAIME MAURICIO",
+        "carrera": "ING. TELECOMUNICACIONES",
+        "correo": "jmeivar@espe.edu.ec"
+      },
+      {
+        "nombre": "NIATO GUALOTUÑA JHOANNA STEFANIA",
+        "carrera": "ADMINISTRACIÓN DE EMPRESAS",
+        "correo": "jsniato@espe.edu.ec"
+      },
+      {
+        "nombre": "ZAMBRANO GUALLASAMÍN SEBASTIÁN ALEXANDER",
+        "carrera": "ADMINISTRACIÓN DE EMPRESAS",
+        "correo": "sazambrano15@espe.edu.ec"
+      },
+      {
+        "nombre": "ANDRADE VELASCO SAMUEL BENJAMÍN",
+        "carrera": "ING. ELECTRÓNICA",
+        "correo": "sbandrade@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "Segur",
+    "members": [
+      {
+        "nombre": "Verdesoto Segovia Edison Damián",
+        "carrera": "Software",
+        "correo": "edverdesoto@espe.edu.ec"
+      },
+      {
+        "nombre": "Cobeña Zambrano Joan Oswaldo",
+        "carrera": "Software",
+        "correo": "jocobena@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "SecondGo",
+    "members": [
+      {
+        "nombre": "Sonoda Vásquez Esther Kimie",
+        "carrera": "Turismo",
+        "correo": "eksonoda@espe.edu.ec"
+      },
+      {
+        "nombre": "Amaguaña Pilicita Dennis Javier",
+        "carrera": "Agropecuaria",
+        "correo": "djamguana1@espe.edu.ec"
+      },
+      {
+        "nombre": "Tasiguano Cofre Evelyn Daniela",
+        "carrera": "Turismo",
+        "correo": "edtasiguano@espe.edu.ec"
+      },
+      {
+        "nombre": "Zambrano Arboleda Dayana Stefania",
+        "carrera": "Turismo",
+        "correo": "dszambrano2@espe.edu.ec"
+      },
+      {
+        "nombre": "Escobar Yupangui Nelson Santiago",
+        "carrera": "Turismo",
+        "correo": "nsescobar1@espe.edu.ec"
+      },
+      {
+        "nombre": "Medina Auquilla Nathaly Simoné",
+        "carrera": "Software",
+        "correo": "nsmedina1@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "Croki´s",
+    "members": [
+      {
+        "nombre": "Bonin Cabrera Aidin",
+        "carrera": "Biotecnología",
+        "correo": "aabonnin@espe.edu.ec"
+      },
+      {
+        "nombre": "Chacán Zambrano Keyki Milene",
+        "carrera": "Biotecnología",
+        "correo": "kmchacan@espe.edu.ec"
+      },
+      {
+        "nombre": "Barreno Pillajo Zahid Raziel",
+        "carrera": "Biotecnología",
+        "correo": "zrbarreno@espe.edu.ec"
+      },
+      {
+        "nombre": "Proaño Pazmiño Eytan Joao",
+        "carrera": "Biotecnología",
+        "correo": "ejproano4@espe.edu.ec"
+      },
+      {
+        "nombre": "Tipán Moina Sofía Carolina",
+        "carrera": "Biotecnología",
+        "correo": "sctipan1@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "ROBODELIVERY",
+    "members": [
+      {
+        "nombre": "PÉREZ VARGAS GABRIEL ALEXANDER",
+        "carrera": "ING. ELECTRONICA Y AUTOMATIZACIÓN",
+        "correo": "gaperez8@espe.edu.ec"
+      },
+      {
+        "nombre": "QUISIRUMBAY GARCÍA JIMMY XAVIER",
+        "carrera": "ING. CIVIL",
+        "correo": "jxquisirumbay@espe.edu.ec"
+      },
+      {
+        "nombre": "ORELLANA VALLE FRANCISCO JAVIER",
+        "carrera": "PAFDE",
+        "correo": "fjorellana@espe.edu.ec"
+      },
+      {
+        "nombre": "GUAJALA AGILA CARLOS SEBASTIAN",
+        "carrera": "ING. ELECTRONICA Y AUTOMATIZACIÓN",
+        "correo": "csguajala@espe.edu.ec"
+      },
+      {
+        "nombre": "GUAMIALAMÁ VINUEZA FALEM ISAÍ",
+        "carrera": "CONTABILIDAD Y AUDITORÍA",
+        "correo": "figuamialama@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "AGROCONECTA",
+    "members": [
+      {
+        "nombre": "Marin Alquinga Josue Isaac",
+        "carrera": "Software",
+        "correo": "jimarin@espe.edu.ec"
+      },
+      {
+        "nombre": "Salcedo Chichande Micaela Stefania",
+        "carrera": "Software",
+        "correo": "mssalcedo2@espe.edu.ec"
+      },
+      {
+        "nombre": "Lluglla Ureña Esteban Jhosue",
+        "carrera": "ING. TELECOMUNICACIONES",
+        "correo": "ejlluglla@espe.edu.ec"
+      },
+      {
+        "nombre": "Betun Obando Flor Marisol",
+        "carrera": "Turismo",
+        "correo": "fmbetun@espe.edu.ec"
+      },
+      {
+        "nombre": "Chusin Llanqui Erika Janeth",
+        "carrera": "Turismo",
+        "correo": "ejchusin@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "Innovamec",
+    "members": [
+      {
+        "nombre": "JEREMY ARIEL CHANO MOROMENACHO",
+        "carrera": "MECATRONICA",
+        "correo": "jachano@espe.edu.ec"
+      },
+      {
+        "nombre": "YESHUA AMADOR CHILIQUINGA AMAYA",
+        "carrera": "SOFTWARE",
+        "correo": "yachiliquinga1@espe.edu.ec"
+      },
+      {
+        "nombre": "JOSHUA ALEXANDER RIVERA MONTENEGRO",
+        "carrera": "MECATRONICA",
+        "correo": "jarivera17@espe.edu.ec"
+      },
+      {
+        "nombre": "MARTIN MILOSLAV SUQUILLO TIGASI",
+        "carrera": "SOFTWARE",
+        "correo": "mmsuquillo@espe.edu.ec"
+      },
+      {
+        "nombre": "MAURICIO JOSEPH TACO CABRERA",
+        "carrera": "MECATRONICA",
+        "correo": "mjtaco3@espe.edu.ec"
+      },
+      {
+        "nombre": "JONATHAN DANIEL VILLARREAL MANZANO",
+        "carrera": "MECATRONICA",
+        "correo": "jdvillarreal1@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "HydroVerde",
+    "members": [
+      {
+        "nombre": "CAIZA UCHUARI JONATHAN EZEQUIEL",
+        "carrera": "AGROPECUARIA",
+        "correo": "jecaiza4@espe.edu.ec"
+      },
+      {
+        "nombre": "FRAY RODRIGUEZ ABRHAM JAEL",
+        "carrera": "AGROPECUARIA",
+        "correo": "ajfray@espe.edu.ec"
+      },
+      {
+        "nombre": "QUISPE CARRILLO CARLA JAZMIN",
+        "carrera": "AGROPECUARIA",
+        "correo": "cjquispe1@espe.edu.ec"
+      },
+      {
+        "nombre": "PEREZ PEREZ ANNIKE DAYANARA",
+        "carrera": "ADMINISTRACIÓN DE EMPRESAS",
+        "correo": "adperez13@espe.edu.ec"
+      },
+      {
+        "nombre": "RODRIGUEZ TORRES LEANDRO FELIPE",
+        "carrera": "MECATRÓNICA",
+        "correo": "lfrodriguez8@espe.edu.ec"
+      },
+      {
+        "nombre": "HARO CUICHAN NATALY MAGDALENA",
+        "carrera": "AGROPECUARIA",
+        "correo": "Nmharo1@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "NOVABAG",
+    "members": [
+      {
+        "nombre": "BAÑO CARRERA MARIA JOSE",
+        "carrera": "Comercio Exterior",
+        "correo": "mjbano@espe.edu.ec"
+      },
+      {
+        "nombre": "BENALCAZAR PABON NATHALY AYLIN",
+        "carrera": "Comercio Exterior",
+        "correo": "nabenalcazar1@espe.edu.ec"
+      },
+      {
+        "nombre": "CASA YUGCHA DAMARIS JAEL",
+        "carrera": "Comercio Exterior",
+        "correo": "djcasa2@espe.edu.ec"
+      },
+      {
+        "nombre": "PUENTE GÓMEZ LYNDA KAMARY",
+        "carrera": "Comercio Exterior",
+        "correo": "lkpuente@espe.edu.ec"
+      },
+      {
+        "nombre": "RAMOS ALVEAR ARELY JOHANA",
+        "carrera": "Comercio Exterior",
+        "correo": "ajramos4@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "BIENESTAR 360",
+    "members": [
+      {
+        "nombre": "Barriga Tonato Laura Fernanda",
+        "carrera": "Comercio Exterior",
+        "correo": "lfbarriga3@espe.edu.ec"
+      },
+      {
+        "nombre": "Coloma Perez Mariela Salome",
+        "carrera": "Comercio Exterior",
+        "correo": "mscoloma2@espe.edu.ec"
+      },
+      {
+        "nombre": "Gil Rea Schalaider Anai",
+        "carrera": "Comercio Exterior",
+        "correo": "sagil@espe.edu.ec"
+      },
+      {
+        "nombre": "Quinatoa Concha Jadira Gisell",
+        "carrera": "Comercio Exterior",
+        "correo": "jgquinatoa@espe.edu.ec"
+      },
+      {
+        "nombre": "Vivas Melo Joel Steven",
+        "carrera": "Comercio Exterior",
+        "correo": "jsvivas2@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "SKYGREEN",
+    "members": [
+      {
+        "nombre": "CISNEROS ESPINOZA DANIELA DAYANNA",
+        "carrera": "Turismo",
+        "correo": "ddcisneros1@espe.edu.ec"
+      },
+      {
+        "nombre": "CASTILLO ESTRELLA JENNIFER GABRIELA",
+        "carrera": "Turismo",
+        "correo": "jgcastillo12@espe.edu"
+      },
+      {
+        "nombre": "CHALACÁN PURUNCAJAS DYLAN SAID",
+        "carrera": "Mercadotecnia",
+        "correo": "dschalcan1@espe.edu"
+      },
+      {
+        "nombre": "PILATAXI GÓMEZ MELANY YESSELY",
+        "carrera": "Turismo",
+        "correo": "mypilatxi@espe.edu.ec"
+      },
+      {
+        "nombre": "PEREIRA VALVERDE VALERY JUSTINE",
+        "carrera": "Ingeniería Civil",
+        "correo": "vjpereira@espe.edu.ec"
+      },
+      {
+        "nombre": "NÚÑEZ CAIZA MICAELA NICOL",
+        "carrera": "Ingeniería agropecuaria",
+        "correo": "mnnunez2@espe.edu.ec"
+      }
+    ]
+  },
+  {
+    "name": "PureSky",
+    "members": [
+      {
+        "nombre": "Almache Chiluisa Doménica Daniela",
+        "carrera": "Biotecnología",
+        "correo": "ddalmache@espe.edu.ec"
+      },
+      {
+        "nombre": "Moncayo Manobanda Justin Patricio",
+        "carrera": "Biotecnología",
+        "correo": "jpmoncayo@espe.edu.ec"
+      },
+      {
+        "nombre": "Proaño Barragán Doménica Anahí",
+        "carrera": "Biotecnología",
+        "correo": "daproano12@espe.edu.ec"
+      },
+      {
+        "nombre": "Quimbita Flores Karen Geovanna",
+        "carrera": "Biotecnología",
+        "correo": "kgquimbita@espe.edu.ec"
+      }
+    ]
+  }
+]

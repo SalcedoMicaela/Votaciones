@@ -1,58 +1,157 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import axios from 'axios'
 import AdminLogin from '../components/AdminLogin'
 import { QRCode } from 'react-qr-code'
 import socket from '../socket'
+import { resizeImage } from '../utils/image'
+import { whatsappLink, downloadQr, safeFilename } from '../utils/qr'
+import { ejeInfo } from '../utils/eje'
+import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
+const emptyForm = { name: '', description: '', photo: '', logo: '', whatsapp: '', eje: '', members: [] }
+
+const SECTIONS = [
+  { key: 'resumen', label: 'Resumen', Icon: LayoutDashboard },
+  { key: 'equipos', label: 'Equipos', Icon: Users },
+  { key: 'votacion', label: 'Votación', Icon: Vote },
+  { key: 'qr', label: 'QR y enlaces', Icon: QrCode },
+  { key: 'config', label: 'Configuración', Icon: Settings },
+]
+
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
+  const [section, setSection] = useState('resumen')
   const [teams, setTeams] = useState([])
+  const [links, setLinks] = useState({})
+  const [results, setResults] = useState({ results: [], total: 0 })
   const [votingActive, setVotingActive] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', photo: '' })
+  const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [showQR, setShowQR] = useState(false)
   const [photoPreview, setPhotoPreview] = useState('')
+  const [logoPreview, setLogoPreview] = useState('')
+  const [linkOpenId, setLinkOpenId] = useState(null)
+  const [voteLinkOpenId, setVoteLinkOpenId] = useState(null)
+  const [copiedId, setCopiedId] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [pwForm, setPwForm] = useState({ nueva: '', confirmar: '' })
+  const [printMode, setPrintMode] = useState('vote')
+  const [query, setQuery] = useState('')
+  const [ejeFilter, setEjeFilter] = useState('all')
 
   useEffect(() => {
-    if (authenticated) {
-      loadTeams()
-      loadStatus()
+    if (!authenticated) return
+    loadTeams()
+    loadStatus()
+    loadLinks()
+    loadResults()
+    const onVote = d => setResults(d)
+    const onToggle = a => setVotingActive(a)
+    socket.on('vote:update', onVote)
+    socket.on('voting:toggle', onToggle)
+    return () => {
+      socket.off('vote:update', onVote)
+      socket.off('voting:toggle', onToggle)
     }
   }, [authenticated])
 
-  async function loadTeams() {
-    try {
-      const res = await axios.get(`${API}/api/admin/teams`)
-      setTeams(res.data)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  async function loadStatus() {
-    try {
-      const res = await axios.get(`${API}/api/admin/status`)
-      setVotingActive(res.data.votingActive)
-    } catch (err) {
-      console.error(err)
-    }
+  function showToast(text) {
+    setToast(text)
+    setTimeout(() => setToast(null), 2500)
   }
 
   const authHeaders = () => ({ headers: { 'x-admin-password': password } })
 
-  function handlePhoto(e) {
+  async function loadTeams() {
+    try { setTeams((await axios.get(`${API}/api/admin/teams`)).data) } catch (err) { console.error(err) }
+  }
+  async function loadResults() {
+    try { setResults((await axios.get(`${API}/api/vote/results`)).data) } catch (err) { console.error(err) }
+  }
+  async function loadLinks() {
+    try {
+      const res = await axios.get(`${API}/api/admin/links`, authHeaders())
+      const map = {}
+      res.data.forEach(l => { map[l.id] = l })
+      setLinks(map)
+    } catch (err) { console.error(err) }
+  }
+  async function loadStatus() {
+    try { setVotingActive((await axios.get(`${API}/api/admin/status`)).data.votingActive) } catch (err) { console.error(err) }
+  }
+
+  function uploadUrl(id) {
+    const token = links[id]?.token
+    return token ? `${FRONTEND_URL}/subir/${token}` : ''
+  }
+  function voteUrl(id) {
+    return `${FRONTEND_URL}/votar/${id}`
+  }
+  function printAll(mode) {
+    setPrintMode(mode)
+    setTimeout(() => window.print(), 80)
+  }
+
+  async function copyText(text, key) {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(key)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch {
+      window.prompt('Copia el link:', text)
+    }
+  }
+
+  function shareWhatsApp(team) {
+    const url = uploadUrl(team.id)
+    const number = links[team.id]?.whatsapp || team.whatsapp
+    const text = `Hola equipo ${team.name}, suban el logo y la foto de su equipo en este enlace: ${url}`
+    window.open(whatsappLink(number, text), '_blank')
+  }
+
+  async function handlePhoto(e) {
     const file = e.target.files[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      setForm(prev => ({ ...prev, photo: reader.result }))
-      setPhotoPreview(reader.result)
-    }
-    reader.readAsDataURL(file)
+    try {
+      const dataUrl = await resizeImage(file, { maxSize: 1280, quality: 0.82 })
+      setForm(prev => ({ ...prev, photo: dataUrl }))
+      setPhotoPreview(dataUrl)
+    } catch (err) { console.error(err) }
+  }
+  async function handleLogo(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    try {
+      const dataUrl = await resizeImage(file, { maxSize: 512, quality: 0.9 })
+      setForm(prev => ({ ...prev, logo: dataUrl }))
+      setLogoPreview(dataUrl)
+    } catch (err) { console.error(err) }
+  }
+
+  function addMember() {
+    setForm(prev => ({ ...prev, members: [...prev.members, { nombre: '', carrera: '', correo: '' }] }))
+  }
+  function updateMember(i, field, value) {
+    setForm(prev => {
+      const members = prev.members.slice()
+      members[i] = { ...members[i], [field]: value }
+      return { ...prev, members }
+    })
+  }
+  function removeMember(i) {
+    setForm(prev => ({ ...prev, members: prev.members.filter((_, idx) => idx !== i) }))
+  }
+
+  function resetForm() {
+    setForm(emptyForm)
+    setPhotoPreview('')
+    setLogoPreview('')
+    setEditingId(null)
   }
 
   async function handleSubmit(e) {
@@ -60,181 +159,467 @@ export default function AdminPage() {
     try {
       if (editingId) {
         await axios.put(`${API}/api/admin/teams/${editingId}`, form, authHeaders())
+        showToast('Equipo actualizado')
       } else {
         await axios.post(`${API}/api/admin/teams`, form, authHeaders())
+        showToast('Equipo agregado')
       }
-      setForm({ name: '', description: '', photo: '' })
-      setPhotoPreview('')
-      setEditingId(null)
+      resetForm()
       loadTeams()
+      loadLinks()
     } catch (err) {
       console.error(err)
+      showToast('Error al guardar')
     }
   }
 
   function editTeam(team) {
-    setForm({ name: team.name, description: team.description, photo: team.photo })
+    setForm({
+      name: team.name,
+      description: team.description,
+      photo: team.photo,
+      logo: team.logo || '',
+      whatsapp: team.whatsapp || '',
+      eje: team.eje || '',
+      members: (team.members || []).map(m => ({ nombre: m.nombre || '', carrera: m.carrera || '', correo: m.correo || '' })),
+    })
     setPhotoPreview(team.photo)
+    setLogoPreview(team.logo || '')
     setEditingId(team.id)
+    setSection('equipos')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function deleteTeam(id) {
-    if (!confirm('Eliminar este equipo?')) return
+    if (!confirm('¿Eliminar este equipo?')) return
     try {
       await axios.delete(`${API}/api/admin/teams/${id}`, authHeaders())
-      loadTeams()
-    } catch (err) {
-      console.error(err)
-    }
+      loadTeams(); loadLinks(); loadResults()
+    } catch (err) { console.error(err) }
   }
 
   async function toggleVoting() {
     try {
       const res = await axios.post(`${API}/api/admin/toggle`, {}, authHeaders())
       setVotingActive(res.data.votingActive)
+    } catch (err) { console.error(err) }
+  }
+
+  async function changePassword(e) {
+    e.preventDefault()
+    if (pwForm.nueva.length < 4) return showToast('Mínimo 4 caracteres')
+    if (pwForm.nueva !== pwForm.confirmar) return showToast('Las contraseñas no coinciden')
+    try {
+      await axios.post(`${API}/api/admin/password`, { newPassword: pwForm.nueva }, authHeaders())
+      setPassword(pwForm.nueva)
+      setPwForm({ nueva: '', confirmar: '' })
+      showToast('Contraseña actualizada')
     } catch (err) {
-      console.error(err)
+      showToast(err.response?.data?.error || 'Error al cambiar la contraseña')
     }
   }
+
+  const votos = results.total || 0
+  const sortedResults = useMemo(() => [...(results.results || [])].sort((a, b) => b.votes - a.votes), [results])
+  const conImagenes = teams.filter(t => t.logo || t.photo).length
+
+  const filteredTeams = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return teams.filter(t => {
+      const ejeOk = ejeFilter === 'all' || String(ejeInfo(t.eje).num) === ejeFilter
+      const nameOk = !q || t.name.toLowerCase().includes(q)
+      return ejeOk && nameOk
+    })
+  }, [teams, query, ejeFilter])
 
   if (!authenticated) {
     return <AdminLogin onLogin={(pwd) => { setPassword(pwd); setAuthenticated(true) }} />
   }
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8">Panel de Administracion</h1>
+  const inputClass = 'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500'
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">Control de Votacion</h2>
-            <div className="flex flex-wrap items-center gap-4">
+  return (
+    <>
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-xl shadow-lg text-sm font-semibold bg-gray-800 text-white print:hidden">
+          {toast}
+        </div>
+      )}
+
+      <div className="print:hidden flex flex-col md:flex-row gap-6">
+        {/* SIDEBAR */}
+        <aside className="md:w-56 flex-shrink-0">
+          <div className="md:sticky md:top-24 bg-white rounded-2xl shadow-sm p-2 flex md:flex-col gap-1 overflow-x-auto">
+            {SECTIONS.map(s => (
               <button
-                onClick={toggleVoting}
-                className={`px-6 py-3 rounded-lg font-bold text-white transition-colors ${
-                  votingActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                key={s.key}
+                onClick={() => setSection(s.key)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-colors text-left ${
+                  section === s.key ? 'bg-espe-600 text-white shadow-sm' : 'text-gray-600 hover:bg-espe-50 hover:text-espe-700'
                 }`}
               >
-                {votingActive ? 'Desactivar Votacion' : 'Activar Votacion'}
+                <s.Icon className="w-5 h-5" />
+                {s.label}
               </button>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                votingActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {votingActive ? 'Activa' : 'Inactiva'}
-              </span>
-            </div>
-            <div className="mt-4">
-              <button
-                onClick={() => setShowQR(!showQR)}
-                className="text-indigo-600 hover:underline text-sm"
-              >
-                {showQR ? 'Ocultar QR' : 'Mostrar QR de votacion'}
-              </button>
-              {showQR && (
-                <div className="mt-4 flex flex-col items-center p-4 bg-gray-50 rounded-lg">
-                  <QRCode value={FRONTEND_URL} size={200} />
-                  <p className="mt-2 text-sm text-gray-500">Escanea para votar</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold mb-4">
-              {editingId ? 'Editar Equipo' : 'Agregar Equipo'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nombre</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Descripcion</label>
-                <textarea
-                  value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  rows="3"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Foto</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhoto}
-                  className="w-full text-sm"
-                />
-                {photoPreview && (
-                  <img src={photoPreview} alt="Preview" className="mt-2 h-32 w-32 object-cover rounded-lg" />
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-semibold"
-                >
-                  {editingId ? 'Guardar Cambios' : 'Agregar'}
-                </button>
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForm({ name: '', description: '', photo: '' })
-                      setPhotoPreview('')
-                      setEditingId(null)
-                    }}
-                    className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Equipos ({teams.length})</h2>
-          <div className="space-y-4">
-            {teams.map(team => (
-              <div key={team.id} className="bg-white p-4 rounded-lg shadow-md flex gap-4 items-start">
-                {team.photo && (
-                  <img src={team.photo} alt={team.name} className="h-20 w-20 object-contain bg-gray-50 rounded-lg flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg truncate">{team.name}</h3>
-                  <p className="text-gray-600 text-sm line-clamp-2">{team.description}</p>
-                </div>
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => editTeam(team)}
-                    className="text-indigo-600 hover:underline text-sm"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => deleteTeam(team.id)}
-                    className="text-red-600 hover:underline text-sm"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </div>
             ))}
-            {teams.length === 0 && (
-              <p className="text-gray-400 text-center py-8">No hay equipos registrados</p>
-            )}
           </div>
+        </aside>
+
+        {/* CONTENIDO */}
+        <div className="flex-1 min-w-0">
+          {/* ===== RESUMEN ===== */}
+          {section === 'resumen' && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold text-gray-800">Resumen</h1>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard label="Equipos" value={teams.length} />
+                <StatCard label="Votos totales" value={votos} accent />
+                <StatCard label="Con imágenes" value={`${conImagenes}/${teams.length}`} />
+                <div className="bg-white rounded-2xl shadow-sm p-4">
+                  <p className="text-xs text-gray-400 mb-1">Estado</p>
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-semibold ${
+                    votingActive ? 'bg-espe-50 text-espe-700' : 'bg-red-50 text-red-600'
+                  }`}>
+                    <span className={`h-2 w-2 rounded-full ${votingActive ? 'bg-espe-500' : 'bg-red-500'}`} />
+                    {votingActive ? 'Abierta' : 'Cerrada'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <h2 className="font-semibold text-gray-700 mb-3">Ranking en vivo</h2>
+                {sortedResults.length === 0 ? (
+                  <p className="text-sm text-gray-400">Aún no hay equipos.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {sortedResults.slice(0, 8).map((t, i) => {
+                      const pct = votos > 0 ? Math.round((t.votes / votos) * 100) : 0
+                      return (
+                        <li key={t.id} className="flex items-center gap-3">
+                          <span className="w-6 text-center text-sm font-bold text-gray-400">{i + 1}</span>
+                          <span className="flex-1 min-w-0 truncate text-sm font-medium text-gray-700">{t.name}</span>
+                          <div className="hidden sm:block w-32 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                            <div className="h-full bg-espe-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-sm font-semibold text-espe-700 w-16 text-right">{t.votes} ({pct}%)</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== EQUIPOS ===== */}
+          {section === 'equipos' && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold text-gray-800">Equipos ({teams.length})</h1>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                {/* Formulario */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm">
+                  <h2 className="text-lg font-semibold mb-4">{editingId ? 'Editar equipo' : 'Agregar equipo'}</h2>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Nombre</label>
+                      <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Eje temático</label>
+                      <select value={form.eje} onChange={e => setForm({ ...form, eje: e.target.value })} className={inputClass}>
+                        <option value="">Sin eje</option>
+                        <option value="Eje 1: Seguridad y Defensa Tecnológica">Eje 1: Seguridad y Defensa Tecnológica</option>
+                        <option value="Eje 2: Sostenibilidad y Green University">Eje 2: Sostenibilidad y Green University</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Descripción</label>
+                      <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="3" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">WhatsApp del equipo</label>
+                      <input type="tel" value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="0991234567" className={inputClass} />
+                    </div>
+                    <div className="flex gap-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Logo</label>
+                        <input type="file" accept="image/*" onChange={handleLogo} className="w-full text-sm" />
+                        {logoPreview && <img src={logoPreview} alt="Logo" className="mt-2 h-20 w-20 object-contain rounded-full bg-gray-50 ring-1 ring-gray-200" />}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Foto del equipo</label>
+                        <input type="file" accept="image/*" onChange={handlePhoto} className="w-full text-sm" />
+                        {photoPreview && <img src={photoPreview} alt="Foto" className="mt-2 h-20 w-28 object-cover rounded-lg bg-gray-50" />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium">Integrantes ({form.members.length})</label>
+                        <button type="button" onClick={addMember} className="text-xs font-semibold text-espe-700 hover:underline">+ Agregar integrante</button>
+                      </div>
+                      <div className="space-y-2">
+                        {form.members.map((m, i) => (
+                          <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                            <input value={m.nombre} onChange={e => updateMember(i, 'nombre', e.target.value)} placeholder="Nombre" className="col-span-4 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                            <input value={m.carrera} onChange={e => updateMember(i, 'carrera', e.target.value)} placeholder="Carrera" className="col-span-3 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                            <input value={m.correo} onChange={e => updateMember(i, 'correo', e.target.value)} placeholder="Correo" className="col-span-4 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                            <button type="button" onClick={() => removeMember(i)} className="col-span-1 text-red-500 hover:text-red-700 text-lg leading-none" title="Quitar">×</button>
+                          </div>
+                        ))}
+                        {form.members.length === 0 && <p className="text-xs text-gray-400">Sin integrantes. Usa "Agregar integrante".</p>}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button type="submit" className="bg-espe-600 text-white px-6 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold">
+                        {editingId ? 'Guardar cambios' : 'Agregar'}
+                      </button>
+                      {editingId && <button type="button" onClick={resetForm} className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Lista */}
+                <div>
+                  <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} />
+                  <div className="space-y-3">
+                  {filteredTeams.map(team => (
+                    <div key={team.id} className="bg-white p-4 rounded-2xl shadow-sm flex gap-4 items-start">
+                      {(team.logo || team.photo) && (
+                        <img src={team.logo || team.photo} alt={team.name} className="h-16 w-16 object-contain bg-gray-50 rounded-lg flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold truncate">{team.name}</h3>
+                        <p className="text-gray-500 text-xs">{(team.members || []).length} integrantes · WhatsApp: {team.whatsapp || '—'}</p>
+                        <div className="flex gap-2 mt-1">
+                          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${team.logo ? 'bg-espe-50 text-espe-700' : 'bg-gray-100 text-gray-400'}`}>
+                            {team.logo && <Check className="w-3 h-3" />}{team.logo ? 'logo' : 'sin logo'}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${team.photo ? 'bg-espe-50 text-espe-700' : 'bg-gray-100 text-gray-400'}`}>
+                            {team.photo && <Check className="w-3 h-3" />}{team.photo ? 'foto' : 'sin foto'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 flex-shrink-0">
+                        <button onClick={() => editTeam(team)} className="text-espe-700 hover:underline text-sm">Editar</button>
+                        <button onClick={() => deleteTeam(team.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                      </div>
+                    </div>
+                  ))}
+                  {teams.length === 0 && <p className="text-gray-400 text-center py-8 bg-white rounded-2xl">No hay equipos registrados</p>}
+                  {teams.length > 0 && filteredTeams.length === 0 && <p className="text-gray-400 text-center py-8 bg-white rounded-2xl">No se encontraron equipos.</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== VOTACIÓN ===== */}
+          {section === 'votacion' && (
+            <div className="space-y-6 max-w-lg">
+              <h1 className="text-2xl font-bold text-gray-800">Control de votación</h1>
+              <div className="bg-white p-6 rounded-2xl shadow-sm">
+                <p className="text-sm text-gray-500 mb-4">
+                  Activa la votación para que las personas puedan votar. Mientras esté cerrada, nadie puede emitir su voto.
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={toggleVoting}
+                    className={`px-6 py-3 rounded-xl font-bold text-white transition-colors ${
+                      votingActive ? 'bg-red-500 hover:bg-red-600' : 'bg-espe-600 hover:bg-espe-700'
+                    }`}
+                  >
+                    {votingActive ? 'Desactivar votación' : 'Activar votación'}
+                  </button>
+                  <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                    votingActive ? 'bg-espe-50 text-espe-700' : 'bg-red-50 text-red-600'
+                  }`}>
+                    <span className={`h-2 w-2 rounded-full ${votingActive ? 'bg-espe-500' : 'bg-red-500'}`} />
+                    {votingActive ? 'Votación abierta' : 'Votación cerrada'}
+                  </span>
+                </div>
+                <p className="mt-4 text-sm text-gray-500">Votos registrados hasta ahora: <span className="font-bold text-espe-700">{votos}</span></p>
+              </div>
+            </div>
+          )}
+
+          {/* ===== QR Y ENLACES ===== */}
+          {section === 'qr' && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold text-gray-800">QR y enlaces</h1>
+
+              <div className="bg-white p-6 rounded-2xl shadow-sm">
+                <h2 className="font-semibold text-gray-700 mb-3">QR general de votación</h2>
+                <p className="text-sm text-gray-500 mb-4">Lleva a la página principal para elegir y votar por cualquier equipo.</p>
+                <div className="flex flex-wrap gap-4 mb-2">
+                  <button onClick={() => setShowQR(!showQR)} className="text-espe-700 hover:underline text-sm font-medium">
+                    {showQR ? 'Ocultar QR general' : 'Mostrar QR general'}
+                  </button>
+                  <button onClick={() => printAll('vote')} className="text-espe-700 hover:underline text-sm font-medium">Imprimir QR de votación (todos)</button>
+                  <button onClick={() => printAll('upload')} className="text-espe-700 hover:underline text-sm font-medium">Imprimir QR de subida (todos)</button>
+                </div>
+                {showQR && (
+                  <div className="mt-3 flex flex-col items-center p-4 bg-gray-50 rounded-xl">
+                    <div id="general-qr"><QRCode value={FRONTEND_URL} size={200} /></div>
+                    <button onClick={() => downloadQr('general-qr', 'qr_votacion_general.png')} className="mt-3 text-xs font-semibold px-3 py-1.5 rounded bg-gray-700 text-white hover:bg-gray-800">
+                      Descargar QR general (PNG)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} />
+
+              <div className="space-y-4">
+                {filteredTeams.map(team => {
+                  const link = links[team.id]
+                  const isOpen = linkOpenId === team.id
+                  const isVoteOpen = voteLinkOpenId === team.id
+                  return (
+                    <div key={team.id} className="bg-white p-4 rounded-2xl shadow-sm">
+                      <div className="flex items-center gap-3">
+                        {(team.logo || team.photo) && <img src={team.logo || team.photo} alt={team.name} className="h-10 w-10 object-contain bg-gray-50 rounded-lg flex-shrink-0" />}
+                        <h3 className="font-bold truncate flex-1">{team.name}</h3>
+                      </div>
+
+                      {/* Votación */}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <button onClick={() => setVoteLinkOpenId(isVoteOpen ? null : team.id)} className="text-sm text-espe-700 hover:underline flex items-center gap-1.5 font-medium">
+                          <Vote className="w-4 h-4" /> QR para votar por este equipo
+                        </button>
+                        {isVoteOpen && (
+                          <div className="mt-3 p-3 bg-espe-50/60 rounded-xl">
+                            <div className="flex gap-2">
+                              <input readOnly value={voteUrl(team.id)} onFocus={e => e.target.select()} className="flex-1 min-w-0 text-xs border rounded px-2 py-1.5 bg-white text-gray-600" />
+                              <button onClick={() => copyText(voteUrl(team.id), `vote-${team.id}`)} className="text-xs font-semibold px-3 py-1.5 rounded bg-espe-600 text-white hover:bg-espe-700 whitespace-nowrap">
+                                {copiedId === `vote-${team.id}` ? '¡Copiado!' : 'Copiar'}
+                              </button>
+                            </div>
+                            <div className="mt-3 flex flex-col items-center p-3 bg-white rounded-lg">
+                              <div id={`voteqr-${team.id}`}><QRCode value={voteUrl(team.id)} size={160} /></div>
+                              <p className="mt-2 text-xs text-gray-500 text-center">Escanea para votar directo por <span className="font-semibold">{team.name}</span></p>
+                            </div>
+                            <button onClick={() => downloadQr(`voteqr-${team.id}`, `votar_${safeFilename(team.name)}.png`)} className="mt-3 text-xs font-semibold px-3 py-1.5 rounded bg-gray-700 text-white hover:bg-gray-800">Descargar QR (PNG)</button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Subida */}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <button onClick={() => setLinkOpenId(isOpen ? null : team.id)} className="text-sm text-gray-600 hover:underline flex items-center gap-1.5 font-medium">
+                          <Camera className="w-4 h-4" /> Link de subida de imágenes
+                        </button>
+                        {isOpen && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+                            {link ? (
+                              <>
+                                <div className="flex gap-2">
+                                  <input readOnly value={uploadUrl(team.id)} onFocus={e => e.target.select()} className="flex-1 min-w-0 text-xs border rounded px-2 py-1.5 bg-white text-gray-600" />
+                                  <button onClick={() => copyText(uploadUrl(team.id), `up-${team.id}`)} className="text-xs font-semibold px-3 py-1.5 rounded bg-gray-700 text-white hover:bg-gray-800 whitespace-nowrap">
+                                    {copiedId === `up-${team.id}` ? '¡Copiado!' : 'Copiar'}
+                                  </button>
+                                </div>
+                                <div className="mt-3 flex flex-col items-center p-3 bg-white rounded-lg">
+                                  <div id={`qr-${team.id}`}><QRCode value={uploadUrl(team.id)} size={160} /></div>
+                                </div>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  <button onClick={() => shareWhatsApp(team)} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded bg-espe-600 text-white hover:bg-espe-700">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.51 5.26l-.999 3.648 3.978-.607zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                                    WhatsApp
+                                  </button>
+                                  <button onClick={() => downloadQr(`qr-${team.id}`, `subir_${safeFilename(team.name)}.png`)} className="text-xs font-semibold px-3 py-1.5 rounded bg-gray-700 text-white hover:bg-gray-800">Descargar QR (PNG)</button>
+                                </div>
+                              </>
+                            ) : <p className="text-xs text-gray-400">Cargando link...</p>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ===== CONFIGURACIÓN ===== */}
+          {section === 'config' && (
+            <div className="space-y-6 max-w-lg">
+              <h1 className="text-2xl font-bold text-gray-800">Configuración</h1>
+              <div className="bg-white p-6 rounded-2xl shadow-sm">
+                <h2 className="text-lg font-semibold mb-1">Contraseña de administrador</h2>
+                <p className="text-xs text-gray-400 mb-4">Se guarda cifrada en la base de datos.</p>
+                <form onSubmit={changePassword} className="space-y-3">
+                  <input type="password" value={pwForm.nueva} onChange={e => setPwForm({ ...pwForm, nueva: e.target.value })} placeholder="Nueva contraseña" className={inputClass} />
+                  <input type="password" value={pwForm.confirmar} onChange={e => setPwForm({ ...pwForm, confirmar: e.target.value })} placeholder="Confirmar nueva contraseña" className={inputClass} />
+                  <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">Cambiar contraseña</button>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Hoja imprimible (solo al imprimir) */}
+      <div className="hidden print:block">
+        <h2 className="text-center text-2xl font-bold mb-1">
+          {printMode === 'vote' ? 'QR de votación por equipo' : 'QR de subida de imágenes'}
+        </h2>
+        <p className="text-center text-sm text-gray-500 mb-6">
+          {printMode === 'vote'
+            ? 'Cada persona escanea el QR de un equipo para votar directo por él'
+            : 'Cada equipo escanea su QR para subir su logo y foto'}
+        </p>
+        <div className="grid grid-cols-3 gap-6">
+          {teams.map(team => (
+            <div key={team.id} className="text-center border border-gray-300 rounded-lg p-3 break-inside-avoid">
+              <p className="font-semibold text-sm mb-2 truncate">{team.name}</p>
+              {printMode === 'vote' ? (
+                <QRCode value={voteUrl(team.id)} size={150} className="mx-auto" />
+              ) : links[team.id]?.token ? (
+                <QRCode value={uploadUrl(team.id)} size={150} className="mx-auto" />
+              ) : (
+                <p className="text-xs text-gray-400">sin link</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function StatCard({ label, value, accent }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm p-4">
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className={`text-2xl font-extrabold ${accent ? 'text-espe-700' : 'text-gray-800'}`}>{value}</p>
+    </div>
+  )
+}
+
+function TeamFilterBar({ query, setQuery, ejeFilter, setEjeFilter, count, total }) {
+  return (
+    <div className="flex flex-col sm:flex-row gap-3 mb-4">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar equipo por nombre..."
+          className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-espe-400"
+        />
+      </div>
+      <select
+        value={ejeFilter}
+        onChange={e => setEjeFilter(e.target.value)}
+        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400"
+      >
+        <option value="all">Todos los ejes</option>
+        <option value="1">Seguridad y Defensa</option>
+        <option value="2">Sostenibilidad</option>
+      </select>
+      <span className="hidden sm:flex items-center text-xs text-gray-400 whitespace-nowrap">{count} de {total}</span>
     </div>
   )
 }

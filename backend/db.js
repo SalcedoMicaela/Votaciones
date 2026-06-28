@@ -1,47 +1,55 @@
-const { Pool } = require('pg')
+const { MongoClient } = require('mongodb')
+const { hashPassword } = require('./auth')
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
+const uri =
+  process.env.MONGO ||
+  process.env.MONGODB_URI ||
+  'mongodb://localhost:27017'
 
-async function testConnection() {
-  const client = await pool.connect()
+// La base de datos siempre apunta a votaciones-empremd (se puede sobreescribir con MONGO_DB)
+const dbName = process.env.MONGO_DB || 'votaciones-empremd'
+
+const client = new MongoClient(uri)
+let db = null
+
+async function connect() {
+  if (db) return db
+  await client.connect()
+  db = client.db(dbName)
+
+  // Un solo voto por correo institucional (antes era por IP -> se migra el índice)
   try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS teams (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT DEFAULT '',
-        photo TEXT DEFAULT '',
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS votes (
-        id SERIAL PRIMARY KEY,
-        team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
-        ip VARCHAR(45) NOT NULL,
-        voted_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(ip)
-      )
-    `)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS settings (
-        key VARCHAR(100) PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    `)
-    await client.query(`
-      INSERT INTO settings (key, value) VALUES ('voting_active', 'false')
-      ON CONFLICT (key) DO NOTHING
-    `)
-    console.log('Database connected and schema ready')
-  } finally {
-    client.release()
+    await db.collection('votes').dropIndex('ip_1')
+  } catch (e) {
+    // El índice por IP no existía; nada que migrar
   }
+  await db.collection('votes').createIndex({ email: 1 }, { unique: true })
+
+  // Token de subida único por equipo (para los links de carga de imágenes)
+  await db.collection('teams').createIndex({ uploadToken: 1 }, { unique: true, sparse: true })
+
+  // Estado de la votación por defecto (no sobreescribe si ya existe)
+  await db.collection('settings').updateOne(
+    { key: 'voting_active' },
+    { $setOnInsert: { key: 'voting_active', value: 'false' } },
+    { upsert: true }
+  )
+
+  // Contraseña de admin guardada (hasheada) en la base de datos.
+  // Se siembra desde ADMIN_PASSWORD la primera vez; luego se gestiona desde el panel.
+  const adminPwExists = await db.collection('settings').findOne({ key: 'admin_password' })
+  if (!adminPwExists) {
+    const defaultPw = process.env.ADMIN_PASSWORD || 'admin123'
+    await db.collection('settings').insertOne({ key: 'admin_password', value: hashPassword(defaultPw) })
+  }
+
+  console.log(`MongoDB conectado: base de datos "${dbName}"`)
+  return db
 }
 
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-  testConnection,
+function getDb() {
+  if (!db) throw new Error('La base de datos no está inicializada. Llama a connect() primero.')
+  return db
 }
+
+module.exports = { connect, getDb, client }
