@@ -9,6 +9,15 @@ import { Search } from 'lucide-react'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const EMAIL_RE = /^[^\s@]+@espe\.edu\.ec$/i
 
+function getDeviceId() {
+  let id = localStorage.getItem('deviceId')
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem('deviceId', id)
+  }
+  return id
+}
+
 export default function VotePage() {
   const [teams, setTeams] = useState([])
   const [votingActive, setVotingActive] = useState(false)
@@ -103,7 +112,7 @@ export default function VotePage() {
     const e = email.trim().toLowerCase()
     setSubmitting(true)
     try {
-      await axios.post(`${API}/api/vote`, { teamId: pendingTeam.id, email: e })
+      await axios.post(`${API}/api/vote`, { teamId: pendingTeam.id, email: e, deviceId: getDeviceId() })
       localStorage.setItem('voterEmail', e)
       setHasVoted(true)
       setVotedTeamId(pendingTeam.id)

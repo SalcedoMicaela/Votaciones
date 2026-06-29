@@ -45,7 +45,7 @@ async function computeResults(db) {
 }
 
 router.post('/', async (req, res) => {
-  const { teamId } = req.body
+  const { teamId, deviceId } = req.body
   const email = normEmail(req.body.email)
   const ip = getClientIp(req)
 
@@ -61,9 +61,18 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Debes usar tu correo institucional (@espe.edu.ec)' })
     }
 
+    if (!deviceId || deviceId.length < 8) {
+      return res.status(400).json({ error: 'Identificador de dispositivo inválido' })
+    }
+
     const existingEmail = await db.collection('votes').findOne({ email })
     if (existingEmail) {
       return res.status(409).json({ error: 'Este correo ya emitió su voto' })
+    }
+
+    const existingDevice = await db.collection('votes').findOne({ deviceId })
+    if (existingDevice) {
+      return res.status(409).json({ error: 'Desde este dispositivo ya se emitió un voto' })
     }
 
     // Validar que el equipo exista
@@ -76,11 +85,11 @@ router.post('/', async (req, res) => {
     }
 
     try {
-      await db.collection('votes').insertOne({ teamId, email, ip, votedAt: new Date() })
+      await db.collection('votes').insertOne({ teamId, email, deviceId, ip, votedAt: new Date() })
     } catch (e) {
-      // Índice único en email -> ya votó (condición de carrera)
+      // Índices únicos en email y deviceId -> ya votó (condición de carrera)
       if (e.code === 11000) {
-        return res.status(409).json({ error: 'Este correo ya emitió su voto' })
+        return res.status(409).json({ error: 'Ya se emitió un voto desde este correo o dispositivo' })
       }
       throw e
     }

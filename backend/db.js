@@ -17,13 +17,19 @@ async function connect() {
   await client.connect()
   db = client.db(dbName)
 
-  // Un voto por correo institucional (la IP se guarda solo como registro, no restringe)
+  // Un voto por correo institucional + un voto por dispositivo (deviceId)
   try {
     await db.collection('votes').dropIndex('ip_1')
   } catch (e) {
     // El índice por IP no existía; nada que migrar
   }
+  try {
+    await db.collection('votes').dropIndex('deviceId_1')
+  } catch (e) {
+    // El índice por deviceId no existía; nada que migrar
+  }
   await db.collection('votes').createIndex({ email: 1 }, { unique: true })
+  await db.collection('votes').createIndex({ deviceId: 1 }, { unique: true, sparse: true })
 
   // Token de subida único por equipo (para los links de carga de imágenes)
   await db.collection('teams').createIndex({ uploadToken: 1 }, { unique: true, sparse: true })
