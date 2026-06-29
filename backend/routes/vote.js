@@ -10,6 +10,15 @@ function normEmail(e) {
   return (e || '').trim().toLowerCase()
 }
 
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for']
+  if (forwarded) {
+    const ips = forwarded.split(',').map(s => s.trim()).filter(Boolean)
+    if (ips.length > 0) return ips[0]
+  }
+  return req.socket?.remoteAddress || req.ip || ''
+}
+
 // Calcula los resultados (equipos + votos por equipo + total)
 async function computeResults(db) {
   const teams = await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray()
@@ -38,7 +47,7 @@ async function computeResults(db) {
 router.post('/', async (req, res) => {
   const { teamId } = req.body
   const email = normEmail(req.body.email)
-  const ip = req.ip || req.connection?.remoteAddress || ''
+  const ip = getClientIp(req)
 
   try {
     const db = getDb()
