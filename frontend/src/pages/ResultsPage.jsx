@@ -93,14 +93,14 @@ export default function ResultsPage() {
       {top3.length === 3 && (
         <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-4 mb-10 pt-6 sm:pt-2">
           <div className="w-full sm:flex-1 sm:max-w-[200px] order-2 sm:order-1">
-            <PodiumCard team={top3[2]} medal={MEDALS[2]} size="sm" totalVotes={total} maxV={maxV} />
+            <PodiumCard team={top3[1]} medal={MEDALS[1]} size="sm" totalVotes={total} maxV={maxV} />
           </div>
           <div className="w-full sm:flex-1 sm:max-w-[240px] z-10 relative order-1 sm:order-2">
             <div className="absolute -top-5 left-1/2 -translate-x-1/2 select-none"><Crown className="w-7 h-7 text-yellow-500 fill-yellow-400" /></div>
             <PodiumCard team={top3[0]} medal={MEDALS[0]} size="lg" totalVotes={total} maxV={maxV} />
           </div>
           <div className="w-full sm:flex-1 sm:max-w-[200px] order-3">
-            <PodiumCard team={top3[1]} medal={MEDALS[1]} size="sm" totalVotes={total} maxV={maxV} />
+            <PodiumCard team={top3[2]} medal={MEDALS[2]} size="sm" totalVotes={total} maxV={maxV} />
           </div>
         </div>
       )}
