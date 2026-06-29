@@ -327,17 +327,23 @@ export default function AdminPage() {
           {section === 'equipos' && (
             <div className="space-y-6">
               <h1 className="text-2xl font-bold text-gray-800">Equipos ({teams.length})</h1>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                {/* Formulario */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm">
-                  <h2 className="text-lg font-semibold mb-4">{editingId ? 'Editar equipo' : 'Agregar equipo'}</h2>
-                  <form onSubmit={handleSubmit} className="space-y-4">
+
+              {/* Formulario compacto horizontal */}
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h2 className="text-lg font-semibold">{editingId ? 'Editar equipo' : 'Agregar equipo'}</h2>
+                  {editingId && (
+                    <button type="button" onClick={resetForm} className="text-xs font-semibold text-gray-500 hover:text-gray-700 underline">Cancelar edición</button>
+                  )}
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Nombre</label>
+                      <label className="block text-xs font-medium mb-1">Nombre</label>
                       <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} required />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Eje temático</label>
+                      <label className="block text-xs font-medium mb-1">Eje temático</label>
                       <select value={form.eje} onChange={e => setForm({ ...form, eje: e.target.value })} className={inputClass}>
                         <option value="">Sin eje</option>
                         <option value="Eje 1: Seguridad y Defensa Tecnológica">Eje 1: Seguridad y Defensa Tecnológica</option>
@@ -345,85 +351,79 @@ export default function AdminPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Descripción</label>
-                      <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="3" />
+                      <label className="block text-xs font-medium mb-1">Descripción</label>
+                      <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="2" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">WhatsApp del equipo</label>
+                      <label className="block text-xs font-medium mb-1">WhatsApp</label>
                       <input type="tel" value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="0991234567" className={inputClass} />
                     </div>
-                    <div className="flex gap-6">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Logo</label>
-                        <input type="file" accept="image/*" onChange={handleLogo} className="w-full text-sm" />
-                        {logoPreview && <img src={logoPreview} alt="Logo" className="mt-2 h-20 w-20 object-contain rounded-full bg-gray-50 ring-1 ring-gray-200" />}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Foto del equipo</label>
-                        <input type="file" accept="image/*" onChange={handlePhoto} className="w-full text-sm" />
-                        {photoPreview && <img src={photoPreview} alt="Foto" className="mt-2 h-20 w-28 object-cover rounded-lg bg-gray-50" />}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium">Integrantes ({form.members.length})</label>
-                        <button type="button" onClick={addMember} className="text-xs font-semibold text-espe-700 hover:underline">+ Agregar integrante</button>
-                      </div>
-                      <div className="space-y-2">
-                        {form.members.map((m, i) => (
-                          <div key={i} className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 sm:gap-2 items-center">
-                            <input value={m.nombre} onChange={e => updateMember(i, 'nombre', e.target.value)} placeholder="Nombre" className="sm:col-span-4 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
-                            <input value={m.carrera} onChange={e => updateMember(i, 'carrera', e.target.value)} placeholder="Carrera" className="sm:col-span-3 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
-                            <input value={m.correo} onChange={e => updateMember(i, 'correo', e.target.value)} placeholder="Correo" className="sm:col-span-4 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
-                            <button type="button" onClick={() => removeMember(i)} className="sm:col-span-1 text-red-500 hover:text-red-700 text-lg leading-none text-center py-1.5 sm:py-0" title="Quitar">×</button>
-                          </div>
-                        ))}
-                        {form.members.length === 0 && <p className="text-xs text-gray-400">Sin integrantes. Usa "Agregar integrante".</p>}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button type="submit" className="bg-espe-600 text-white px-6 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold">
-                        {editingId ? 'Guardar cambios' : 'Agregar'}
-                      </button>
-                      {editingId && <button type="button" onClick={resetForm} className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>}
-                    </div>
-                  </form>
-                </div>
-
-                {/* Lista */}
-                <div>
-                  <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} />
-                  <div className="space-y-3">
-                  {filteredTeams.map(team => (
-                    <div key={team.id} className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm flex gap-3 sm:gap-4 items-start">
-                      {(team.logo || team.photo) && (
-                        <img src={team.logo || team.photo} alt={team.name} className="h-12 w-12 sm:h-16 sm:w-16 object-contain bg-gray-50 rounded-lg flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm sm:text-base truncate">{team.name}</h3>
-                        <p className="text-gray-500 text-[11px] sm:text-xs">{(team.members || []).length} integrantes · WhatsApp: {team.whatsapp || '—'}</p>
-                        <div className="flex gap-2 mt-1">
-                          <span className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full ${team.logo ? 'bg-espe-50 text-espe-700' : 'bg-gray-100 text-gray-400'}`}>
-                            {team.logo && <Check className="w-3 h-3" />}{team.logo ? 'logo' : 'sin logo'}
-                          </span>
-                          <span className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full ${team.photo ? 'bg-espe-50 text-espe-700' : 'bg-gray-100 text-gray-400'}`}>
-                            {team.photo && <Check className="w-3 h-3" />}{team.photo ? 'foto' : 'sin foto'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-row sm:flex-col gap-2 flex-shrink-0 items-start">
-                        <button onClick={() => editTeam(team)} className="text-espe-700 hover:underline text-xs sm:text-sm font-medium">Editar</button>
-                        <button onClick={() => deleteTeam(team.id)} className="text-red-600 hover:underline text-xs sm:text-sm font-medium">Eliminar</button>
-                      </div>
-                    </div>
-                  ))}
-                  {teams.length === 0 && <p className="text-gray-400 text-center py-8 bg-white rounded-2xl">No hay equipos registrados</p>}
-                  {teams.length > 0 && filteredTeams.length === 0 && <p className="text-gray-400 text-center py-8 bg-white rounded-2xl">No se encontraron equipos.</p>}
                   </div>
-                </div>
+
+                  <div className="flex flex-wrap gap-4 items-end">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Logo</label>
+                      <input type="file" accept="image/*" onChange={handleLogo} className="w-full text-xs" />
+                      {logoPreview && <img src={logoPreview} alt="Logo" className="mt-1 h-12 w-12 object-contain rounded-full bg-gray-50 ring-1 ring-gray-200" />}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Foto del equipo</label>
+                      <input type="file" accept="image/*" onChange={handlePhoto} className="w-full text-xs" />
+                      {photoPreview && <img src={photoPreview} alt="Foto" className="mt-1 h-12 w-20 object-cover rounded-lg bg-gray-50" />}
+                    </div>
+                    <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">
+                      {editingId ? 'Guardar cambios' : 'Agregar'}
+                    </button>
+                  </div>
+
+                  <details className="text-xs text-gray-500">
+                    <summary className="cursor-pointer font-medium text-espe-700 hover:underline">
+                      Integrantes ({form.members.length})
+                    </summary>
+                    <div className="mt-2 space-y-1.5">
+                      {form.members.map((m, i) => (
+                        <div key={i} className="flex flex-wrap gap-1.5 items-center">
+                          <input value={m.nombre} onChange={e => updateMember(i, 'nombre', e.target.value)} placeholder="Nombre" className="flex-1 min-w-[100px] border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                          <input value={m.carrera} onChange={e => updateMember(i, 'carrera', e.target.value)} placeholder="Carrera" className="flex-1 min-w-[100px] border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                          <input value={m.correo} onChange={e => updateMember(i, 'correo', e.target.value)} placeholder="Correo" className="flex-1 min-w-[100px] border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                          <button type="button" onClick={() => removeMember(i)} className="text-red-500 hover:text-red-700 text-base leading-none px-1" title="Quitar">×</button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addMember} className="text-xs font-semibold text-espe-700 hover:underline">+ Agregar integrante</button>
+                    </div>
+                  </details>
+                </form>
               </div>
+
+              {/* Lista en grid responsive */}
+              <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredTeams.map(team => (
+                  <div key={team.id} className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm flex gap-3 items-start">
+                    {(team.logo || team.photo) && (
+                      <img src={team.logo || team.photo} alt={team.name} className="h-12 w-12 sm:h-14 sm:w-14 object-contain bg-gray-50 rounded-lg flex-shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm truncate">{team.name}</h3>
+                      <p className="text-gray-500 text-[11px]">{(team.members || []).length} integrantes · WhatsApp: {team.whatsapp || '—'}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${team.logo ? 'bg-espe-50 text-espe-700' : 'bg-gray-100 text-gray-400'}`}>
+                          {team.logo && <Check className="w-3 h-3" />}{team.logo ? 'logo' : 'sin logo'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full ${team.photo ? 'bg-espe-50 text-espe-700' : 'bg-gray-100 text-gray-400'}`}>
+                          {team.photo && <Check className="w-3 h-3" />}{team.photo ? 'foto' : 'sin foto'}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 mt-2">
+                        <button onClick={() => editTeam(team)} className="text-espe-700 hover:underline text-xs font-medium">Editar</button>
+                        <button onClick={() => deleteTeam(team.id)} className="text-red-600 hover:underline text-xs font-medium">Eliminar</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {teams.length === 0 && <p className="text-gray-400 text-center py-8 bg-white rounded-2xl">No hay equipos registrados</p>}
+              {teams.length > 0 && filteredTeams.length === 0 && <p className="text-gray-400 text-center py-8 bg-white rounded-2xl">No se encontraron equipos.</p>}
             </div>
           )}
 

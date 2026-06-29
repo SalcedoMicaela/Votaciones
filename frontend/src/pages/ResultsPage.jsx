@@ -90,15 +90,15 @@ export default function ResultsPage() {
 
       {/* PODIO - Kahoot style */}
       {top3.length === 3 && (
-        <div className="flex items-end justify-center gap-2 sm:gap-4 mb-10">
-          <div className="flex-1 max-w-[200px]">
+        <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-4 mb-10">
+          <div className="w-full sm:flex-1 sm:max-w-[200px] order-2 sm:order-1">
             <PodiumCard team={top3[2]} medal={MEDALS[2]} size="sm" totalVotes={total} maxV={maxV} />
           </div>
-          <div className="flex-1 max-w-[240px] z-10 relative -top-3">
+          <div className="w-full sm:flex-1 sm:max-w-[240px] z-10 relative sm:-top-3 order-1 sm:order-2">
             <div className="absolute -top-7 left-1/2 -translate-x-1/2 select-none"><Crown className="w-7 h-7 text-yellow-500 fill-yellow-400" /></div>
             <PodiumCard team={top3[0]} medal={MEDALS[0]} size="lg" totalVotes={total} maxV={maxV} />
           </div>
-          <div className="flex-1 max-w-[200px]">
+          <div className="w-full sm:flex-1 sm:max-w-[200px] order-3">
             <PodiumCard team={top3[1]} medal={MEDALS[1]} size="sm" totalVotes={total} maxV={maxV} />
           </div>
         </div>
@@ -134,7 +134,7 @@ export default function ResultsPage() {
                     <h3 className="font-semibold text-gray-800 truncate">{team.name}</h3>
                     <span className="text-xs text-gray-400">{team.votes} votos</span>
                   </div>
-                  <div className="hidden sm:block w-32 md:w-48 bg-gray-100 rounded-full h-4 overflow-hidden">
+                  <div className="w-20 sm:w-32 md:w-48 bg-gray-100 rounded-full h-4 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700 bg-gradient-to-r from-espe-400 to-espe-600"
                       style={{ width: `${Math.max(barWidth, 2)}%` }}
