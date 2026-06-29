@@ -14,6 +14,7 @@ const io = new Server(server, {
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.set('io', io)
+app.set('trust proxy', 1)
 
 app.use('/api/admin', require('./routes/admin'))
 app.use('/api/vote', require('./routes/vote'))

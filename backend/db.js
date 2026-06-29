@@ -17,13 +17,14 @@ async function connect() {
   await client.connect()
   db = client.db(dbName)
 
-  // Un solo voto por correo institucional (antes era por IP -> se migra el índice)
+  // Un voto por correo institucional + un voto por IP
   try {
     await db.collection('votes').dropIndex('ip_1')
   } catch (e) {
     // El índice por IP no existía; nada que migrar
   }
   await db.collection('votes').createIndex({ email: 1 }, { unique: true })
+  await db.collection('votes').createIndex({ ip: 1 }, { unique: true, sparse: true })
 
   // Token de subida único por equipo (para los links de carga de imágenes)
   await db.collection('teams').createIndex({ uploadToken: 1 }, { unique: true, sparse: true })

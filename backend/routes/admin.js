@@ -210,4 +210,16 @@ router.get('/status', async (req, res) => {
   }
 })
 
+// Reinicia la votación: elimina todos los votos registrados
+router.post('/reset-votes', adminAuth, async (req, res) => {
+  try {
+    const db = getDb()
+    const result = await db.collection('votes').deleteMany({})
+    req.app.get('io').emit('vote:update', { results: [], total: 0 })
+    res.json({ success: true, deletedCount: result.deletedCount })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 module.exports = router

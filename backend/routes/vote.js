@@ -38,6 +38,7 @@ async function computeResults(db) {
 router.post('/', async (req, res) => {
   const { teamId } = req.body
   const email = normEmail(req.body.email)
+  const ip = req.ip || req.connection?.remoteAddress || ''
 
   try {
     const db = getDb()
@@ -51,9 +52,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Debes usar tu correo institucional (@espe.edu.ec)' })
     }
 
-    const existing = await db.collection('votes').findOne({ email })
-    if (existing) {
+    const existingEmail = await db.collection('votes').findOne({ email })
+    if (existingEmail) {
       return res.status(409).json({ error: 'Este correo ya emitió su voto' })
+    }
+
+    const existingIp = await db.collection('votes').findOne({ ip })
+    if (existingIp) {
+      return res.status(409).json({ error: 'Desde este dispositivo/IP ya se emitió un voto' })
     }
 
     // Validar que el equipo exista
@@ -66,11 +72,11 @@ router.post('/', async (req, res) => {
     }
 
     try {
-      await db.collection('votes').insertOne({ teamId, email, votedAt: new Date() })
+      await db.collection('votes').insertOne({ teamId, email, ip, votedAt: new Date() })
     } catch (e) {
-      // Índice único en email -> ya votó (condición de carrera)
+      // Índices únicos en email e ip -> ya votó (condición de carrera)
       if (e.code === 11000) {
-        return res.status(409).json({ error: 'Este correo ya emitió su voto' })
+        return res.status(409).json({ error: 'Ya se emitió un voto desde este correo o dispositivo' })
       }
       throw e
     }
