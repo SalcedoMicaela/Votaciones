@@ -6,9 +6,9 @@ import { Trophy, Medal, Award, Crown } from 'lucide-react'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 const MEDALS = {
-  0: { Icon: Trophy, color: 'text-yellow-500', bg: 'bg-yellow-50 border-yellow-300', bar: 'bg-gradient-to-r from-yellow-400 to-yellow-500', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.25)]' },
-  1: { Icon: Medal, color: 'text-slate-400', bg: 'bg-slate-50 border-slate-300', bar: 'bg-gradient-to-r from-slate-400 to-slate-500', glow: '' },
-  2: { Icon: Award, color: 'text-amber-600', bg: 'bg-amber-50 border-amber-300', bar: 'bg-gradient-to-r from-amber-500 to-amber-600', glow: '' },
+  0: { Icon: Trophy, label: 'Primer lugar', color: 'text-yellow-500', bg: 'bg-yellow-50 border-yellow-300', bar: 'bg-gradient-to-r from-yellow-400 to-yellow-500', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.25)]' },
+  1: { Icon: Medal, label: 'Segundo lugar', color: 'text-slate-400', bg: 'bg-slate-50 border-slate-300', bar: 'bg-gradient-to-r from-slate-400 to-slate-500', glow: '' },
+  2: { Icon: Award, label: 'Tercer lugar', color: 'text-amber-600', bg: 'bg-amber-50 border-amber-300', bar: 'bg-gradient-to-r from-amber-500 to-amber-600', glow: '' },
 }
 
 function PodiumCard({ team, medal, size, totalVotes, maxV }) {
@@ -19,9 +19,10 @@ function PodiumCard({ team, medal, size, totalVotes, maxV }) {
   const barWid = totalVotes > 0 ? (team.votes / maxV) * 100 : 0
   return (
     <div className={`rounded-2xl border-2 p-4 sm:p-6 text-center transition-all duration-700 ${medal.bg} ${medal.glow} ${size === 'lg' ? 'scale-100' : 'scale-90 sm:scale-95'}`}>
-      <div className="mb-2 flex justify-center">
+      <div className="mb-1 flex justify-center">
         <medal.Icon className={`${size === 'lg' ? 'w-10 h-10' : 'w-8 h-8'} ${medal.color}`} strokeWidth={2} />
       </div>
+      <p className={`text-xs font-bold uppercase tracking-wider ${medal.color} mb-2`}>{medal.label}</p>
       {(team.logo || team.photo) ? (
         <img src={team.logo || team.photo} alt={team.name} className={`${imgSize} mx-auto object-cover rounded-full ring-4 ring-white shadow-lg mb-3`} />
       ) : (
@@ -80,7 +81,7 @@ export default function ResultsPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-center mb-1">Resultados en Vivo</h1>
-      <p className="text-center text-gray-500 mb-6">
+      <p className="text-center text-gray-500 mb-8 sm:mb-10">
         Total de votos: <span className="font-bold text-espe-700">{total}</span>
       </p>
 
@@ -90,12 +91,12 @@ export default function ResultsPage() {
 
       {/* PODIO - Kahoot style */}
       {top3.length === 3 && (
-        <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-4 mb-10">
+        <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-4 mb-10 pt-6 sm:pt-2">
           <div className="w-full sm:flex-1 sm:max-w-[200px] order-2 sm:order-1">
             <PodiumCard team={top3[2]} medal={MEDALS[2]} size="sm" totalVotes={total} maxV={maxV} />
           </div>
-          <div className="w-full sm:flex-1 sm:max-w-[240px] z-10 relative sm:-top-3 order-1 sm:order-2">
-            <div className="absolute -top-7 left-1/2 -translate-x-1/2 select-none"><Crown className="w-7 h-7 text-yellow-500 fill-yellow-400" /></div>
+          <div className="w-full sm:flex-1 sm:max-w-[240px] z-10 relative order-1 sm:order-2">
+            <div className="absolute -top-5 left-1/2 -translate-x-1/2 select-none"><Crown className="w-7 h-7 text-yellow-500 fill-yellow-400" /></div>
             <PodiumCard team={top3[0]} medal={MEDALS[0]} size="lg" totalVotes={total} maxV={maxV} />
           </div>
           <div className="w-full sm:flex-1 sm:max-w-[200px] order-3">
