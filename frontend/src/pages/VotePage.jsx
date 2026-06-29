@@ -9,6 +9,15 @@ import { Search } from 'lucide-react'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const EMAIL_RE = /^[^\s@]+@espe\.edu\.ec$/i
 
+function getDeviceId() {
+  let id = localStorage.getItem('deviceId')
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem('deviceId', id)
+  }
+  return id
+}
+
 export default function VotePage() {
   const [teams, setTeams] = useState([])
   const [votingActive, setVotingActive] = useState(false)
@@ -47,16 +56,16 @@ export default function VotePage() {
   async function loadData() {
     try {
       const saved = localStorage.getItem('voterEmail') || ''
-      const [teamsRes, statusRes, ipRes] = await Promise.all([
+      const [teamsRes, statusRes, deviceRes] = await Promise.all([
         axios.get(`${API}/api/admin/teams`),
         axios.get(`${API}/api/admin/status`),
-        axios.get(`${API}/api/vote/check-ip`),
+        axios.get(`${API}/api/vote/check-device`, { params: { deviceId: getDeviceId() } }),
       ])
       setTeams(teamsRes.data)
       setVotingActive(statusRes.data.votingActive)
-      if (ipRes.data.hasVoted) {
+      if (deviceRes.data.hasVoted) {
         setHasVoted(true)
-        setVotedTeamId(ipRes.data.teamId)
+        setVotedTeamId(deviceRes.data.teamId)
       } else if (EMAIL_RE.test(saved)) {
         await checkEmail(saved)
       }
@@ -109,7 +118,7 @@ export default function VotePage() {
     const e = email.trim().toLowerCase()
     setSubmitting(true)
     try {
-      await axios.post(`${API}/api/vote`, { teamId: pendingTeam.id, email: e })
+      await axios.post(`${API}/api/vote`, { teamId: pendingTeam.id, email: e, deviceId: getDeviceId() })
       localStorage.setItem('voterEmail', e)
       setHasVoted(true)
       setVotedTeamId(pendingTeam.id)
