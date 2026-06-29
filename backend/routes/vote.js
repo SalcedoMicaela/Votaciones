@@ -45,7 +45,7 @@ async function computeResults(db) {
 }
 
 router.post('/', async (req, res) => {
-  const { teamId, deviceId } = req.body
+  const { teamId } = req.body
   const email = normEmail(req.body.email)
   const ip = getClientIp(req)
 
@@ -61,8 +61,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Debes usar tu correo institucional (@espe.edu.ec)' })
     }
 
-    if (!deviceId || deviceId.length < 8) {
-      return res.status(400).json({ error: 'Identificador de dispositivo inválido' })
+    if (!ip) {
+      return res.status(400).json({ error: 'No se pudo determinar tu dirección IP' })
     }
 
     const existingEmail = await db.collection('votes').findOne({ email })
@@ -70,8 +70,8 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: 'Este correo ya emitió su voto' })
     }
 
-    const existingDevice = await db.collection('votes').findOne({ deviceId })
-    if (existingDevice) {
+    const existingIp = await db.collection('votes').findOne({ ip })
+    if (existingIp) {
       return res.status(409).json({ error: 'Desde este dispositivo ya se emitió un voto' })
     }
 
@@ -85,9 +85,9 @@ router.post('/', async (req, res) => {
     }
 
     try {
-      await db.collection('votes').insertOne({ teamId, email, deviceId, ip, votedAt: new Date() })
+      await db.collection('votes').insertOne({ teamId, email, ip, votedAt: new Date() })
     } catch (e) {
-      // Índices únicos en email y deviceId -> ya votó (condición de carrera)
+      // Índices únicos en email e ip -> ya votó (condición de carrera)
       if (e.code === 11000) {
         return res.status(409).json({ error: 'Ya se emitió un voto desde este correo o dispositivo' })
       }
@@ -113,7 +113,7 @@ router.get('/results', async (req, res) => {
   }
 })
 
-// Verifica si un correo ya votó (para mostrar el estado al cargar)
+// Verifica si un correo ya votó
 router.get('/check', async (req, res) => {
   const email = normEmail(req.query.email)
   if (!EMAIL_RE.test(email)) {
@@ -121,6 +121,17 @@ router.get('/check', async (req, res) => {
   }
   try {
     const vote = await getDb().collection('votes').findOne({ email })
+    res.json({ hasVoted: !!vote, teamId: vote?.teamId || null })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Verifica si la IP ya votó (se llama al cargar la página)
+router.get('/check-ip', async (req, res) => {
+  const ip = getClientIp(req)
+  try {
+    const vote = await getDb().collection('votes').findOne({ ip })
     res.json({ hasVoted: !!vote, teamId: vote?.teamId || null })
   } catch (err) {
     res.status(500).json({ error: err.message })
