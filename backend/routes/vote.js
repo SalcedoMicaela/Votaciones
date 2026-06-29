@@ -66,11 +66,6 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: 'Este correo ya emitió su voto' })
     }
 
-    const existingIp = await db.collection('votes').findOne({ ip })
-    if (existingIp) {
-      return res.status(409).json({ error: 'Desde este dispositivo/IP ya se emitió un voto' })
-    }
-
     // Validar que el equipo exista
     if (!teamId || !ObjectId.isValid(teamId)) {
       return res.status(400).json({ error: 'Equipo inválido' })
@@ -83,9 +78,9 @@ router.post('/', async (req, res) => {
     try {
       await db.collection('votes').insertOne({ teamId, email, ip, votedAt: new Date() })
     } catch (e) {
-      // Índices únicos en email e ip -> ya votó (condición de carrera)
+      // Índice único en email -> ya votó (condición de carrera)
       if (e.code === 11000) {
-        return res.status(409).json({ error: 'Ya se emitió un voto desde este correo o dispositivo' })
+        return res.status(409).json({ error: 'Este correo ya emitió su voto' })
       }
       throw e
     }
