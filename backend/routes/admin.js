@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { hashPassword, verifyPassword } = require('../auth')
+const { getCurrentPhase, setCurrentPhase, computeRanking } = require('../phase')
 
 // Valida una contraseña contra la guardada (hasheada) en la BD.
 async function isValidAdminPassword(password) {
@@ -217,6 +218,159 @@ router.post('/reset-votes', adminAuth, async (req, res) => {
     const result = await db.collection('votes').deleteMany({})
     req.app.get('io').emit('vote:update', { results: [], total: 0 })
     res.json({ success: true, deletedCount: result.deletedCount })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// ===================== RÚBRICA (preguntas) =====================
+function mapQuestion(q) {
+  return { id: q._id.toString(), text: q.text, maxScore: q.maxScore, order: q.order || 0 }
+}
+
+router.get('/questions', async (req, res) => {
+  try {
+    const qs = await getDb().collection('questions').find().sort({ order: 1, _id: 1 }).toArray()
+    res.json(qs.map(mapQuestion))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.post('/questions', adminAuth, async (req, res) => {
+  const { text, maxScore, order } = req.body
+  if (!text || !(Number(maxScore) > 0)) {
+    return res.status(400).json({ error: 'Texto y puntaje máximo (mayor a 0) requeridos' })
+  }
+  try {
+    const doc = { text: String(text).trim(), maxScore: Number(maxScore), order: Number(order) || 0, createdAt: new Date() }
+    const r = await getDb().collection('questions').insertOne(doc)
+    res.json(mapQuestion({ ...doc, _id: r.insertedId }))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.put('/questions/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Pregunta no encontrada' })
+  const { text, maxScore, order } = req.body
+  const set = {}
+  if (text !== undefined) set.text = String(text).trim()
+  if (maxScore !== undefined) set.maxScore = Number(maxScore)
+  if (order !== undefined) set.order = Number(order)
+  try {
+    await getDb().collection('questions').updateOne({ _id: new ObjectId(id) }, { $set: set })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.delete('/questions/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Pregunta no encontrada' })
+  try {
+    await getDb().collection('questions').deleteOne({ _id: new ObjectId(id) })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ===================== JURADOS =====================
+function mapJudge(j) {
+  return { id: j._id.toString(), name: j.name, username: j.username }
+}
+function normUser(u) {
+  return (u || '').trim().toLowerCase()
+}
+
+router.get('/judges', adminAuth, async (req, res) => {
+  try {
+    const js = await getDb().collection('judges').find().sort({ createdAt: 1, _id: 1 }).toArray()
+    res.json(js.map(mapJudge))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.post('/judges', adminAuth, async (req, res) => {
+  const name = (req.body.name || '').trim()
+  const username = normUser(req.body.username)
+  const password = req.body.password || ''
+  if (!name || !username || password.length < 4) {
+    return res.status(400).json({ error: 'Nombre, usuario y contraseña (mín. 4) requeridos' })
+  }
+  try {
+    const doc = {
+      name,
+      username,
+      passwordHash: hashPassword(password),
+      token: makeToken(),
+      createdAt: new Date(),
+    }
+    const r = await getDb().collection('judges').insertOne(doc)
+    res.json(mapJudge({ ...doc, _id: r.insertedId }))
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'Ese usuario ya existe' })
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.put('/judges/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Jurado no encontrado' })
+  const set = {}
+  if (req.body.name !== undefined) set.name = String(req.body.name).trim()
+  if (req.body.username !== undefined) set.username = normUser(req.body.username)
+  if (req.body.password) set.passwordHash = hashPassword(req.body.password)
+  try {
+    await getDb().collection('judges').updateOne({ _id: new ObjectId(id) }, { $set: set })
+    res.json({ ok: true })
+  } catch (err) {
+    if (err.code === 11000) return res.status(409).json({ error: 'Ese usuario ya existe' })
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.delete('/judges/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Jurado no encontrado' })
+  try {
+    await getDb().collection('judges').deleteOne({ _id: new ObjectId(id) })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// ===================== FASES / RANKING =====================
+router.get('/phase', async (req, res) => {
+  try {
+    res.json({ phase: await getCurrentPhase(getDb()) })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.get('/ranking', async (req, res) => {
+  try {
+    const db = getDb()
+    const phase = req.query.phase ? parseInt(req.query.phase, 10) : await getCurrentPhase(db)
+    const ranking = await computeRanking(db, phase)
+    res.json({ phase, ranking })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.post('/advance', adminAuth, async (req, res) => {
+  const count = parseInt(req.body.count, 10)
+  if (!(count >= 1)) return res.status(400).json({ error: 'Indica cuántos equipos pasan (mínimo 1)' })
+  try {
+    const db = getDb()
+    const phase = await getCurrentPhase(db)
+    const ranking = await computeRanking(db, phase)
+    if (ranking.length === 0) return res.status(400).json({ error: 'No hay equipos activos en esta fase' })
+
+    const topIds = ranking.slice(0, count).map(r => new ObjectId(r.id))
+    await db.collection('teams').updateMany(
+      { _id: { $in: topIds } },
+      { $set: { phaseReached: phase + 1 } }
+    )
+    await setCurrentPhase(db, phase + 1)
+    // Cerrar la votación; el admin la reabre en la nueva fase
+    await db.collection('settings').updateOne(
+      { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
+
+    req.app.get('io').emit('phase:update', { phase: phase + 1 })
+    req.app.get('io').emit('voting:toggle', false)
+    res.json({ phase: phase + 1, passed: topIds.length })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

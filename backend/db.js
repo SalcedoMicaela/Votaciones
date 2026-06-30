@@ -17,20 +17,29 @@ async function connect() {
   await client.connect()
   db = client.db(dbName)
 
-  // Un voto por correo institucional + un voto por dispositivo (evita doble voto desde el mismo navegador)
-  const existingIndexes = await db.collection('votes').indexes()
-  const indexNames = existingIndexes.map(i => i.name)
-  if (indexNames.includes('ip_1')) {
-    await db.collection('votes').dropIndex('ip_1')
+  // Votación por fase: 1 voto por correo y por dispositivo EN CADA fase -> índices compuestos.
+  // Se migran los índices simples viejos (email_1, deviceId_1, ip_1) si existen.
+  const voteIdx = (await db.collection('votes').indexes()).map(i => i.name)
+  for (const n of ['ip_1', 'email_1', 'deviceId_1']) {
+    if (voteIdx.includes(n)) await db.collection('votes').dropIndex(n)
   }
-  if (indexNames.includes('deviceId_1')) {
-    await db.collection('votes').dropIndex('deviceId_1')
-  }
-  await db.collection('votes').createIndex({ email: 1 }, { unique: true })
-  await db.collection('votes').createIndex({ deviceId: 1 }, { unique: true, sparse: true })
+  await db.collection('votes').createIndex({ email: 1, phase: 1 }, { unique: true })
+  await db.collection('votes').createIndex({ deviceId: 1, phase: 1 }, { unique: true, sparse: true })
+
+  // Jurados, rúbrica y calificaciones
+  await db.collection('judges').createIndex({ username: 1 }, { unique: true })
+  await db.collection('judges').createIndex({ token: 1 }, { unique: true, sparse: true })
+  await db.collection('scores').createIndex({ judgeId: 1, teamId: 1, phase: 1 }, { unique: true })
 
   // Token de subida único por equipo (para los links de carga de imágenes)
   await db.collection('teams').createIndex({ uploadToken: 1 }, { unique: true, sparse: true })
+
+  // Fase actual del evento (por defecto 1)
+  await db.collection('settings').updateOne(
+    { key: 'current_phase' },
+    { $setOnInsert: { key: 'current_phase', value: '1' } },
+    { upsert: true }
+  )
 
   // Estado de la votación por defecto (no sobreescribe si ya existe)
   await db.collection('settings').updateOne(
