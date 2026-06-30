@@ -107,20 +107,25 @@ router.post('/score', judgeAuth, async (req, res) => {
       return res.status(400).json({ error: 'Equipo no disponible para esta fase' })
     }
 
-    // Acotar cada puntaje a [0, maxScore] de su pregunta
+    // Guardar respuestas: texto libre no suma; los demás se acotan a [0, maxScore].
     const questions = await db.collection('questions').find().toArray()
-    const maxById = {}
-    questions.forEach(q => { maxById[q._id.toString()] = q.maxScore })
+    const qById = {}
+    questions.forEach(q => { qById[q._id.toString()] = q })
 
     const clean = []
     let total = 0
     for (const a of answers) {
       const qid = String(a.questionId)
-      if (!(qid in maxById)) continue
-      let p = Number(a.points) || 0
-      p = Math.max(0, Math.min(maxById[qid], p))
-      clean.push({ questionId: qid, points: p })
-      total += p
+      const q = qById[qid]
+      if (!q) continue
+      if (q.type === 'text') {
+        clean.push({ questionId: qid, text: String(a.text || '').slice(0, 2000) })
+      } else {
+        let p = Number(a.points) || 0
+        p = Math.max(0, Math.min(q.maxScore, p))
+        clean.push({ questionId: qid, points: p })
+        total += p
+      }
     }
     total = Math.round(total * 100) / 100
 

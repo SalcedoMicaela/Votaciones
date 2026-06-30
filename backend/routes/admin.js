@@ -240,13 +240,17 @@ function mapQuestion(q) {
 // 'open'   -> el jurado escribe un número 0..maxScore.
 function buildQuestionFields(body) {
   const text = String(body.text || '').trim()
-  const type = body.type === 'choice' ? 'choice' : 'open'
+  const type = ['choice', 'open', 'text'].includes(body.type) ? body.type : 'open'
   if (type === 'choice') {
     const options = (Array.isArray(body.options) ? body.options : [])
       .map(o => ({ label: String(o.label ?? '').trim(), points: Number(o.points) || 0 }))
       .filter(o => o.label !== '')
     const maxScore = options.reduce((m, o) => Math.max(m, o.points), 0)
     return { text, type, options, maxScore }
+  }
+  if (type === 'text') {
+    // Respuesta de texto libre: no suma puntos.
+    return { text, type, options: [], maxScore: 0 }
   }
   return { text, type, options: [], maxScore: Number(body.maxScore) || 0 }
 }

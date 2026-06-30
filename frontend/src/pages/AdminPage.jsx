@@ -900,8 +900,8 @@ export default function AdminPage() {
                 <form onSubmit={saveQuestion} className="space-y-3">
                   <input value={qForm.text} onChange={e => setQForm({ ...qForm, text: e.target.value })} placeholder="Texto de la pregunta / criterio" className={inputClass} required />
 
-                  <div className="flex gap-2">
-                    {[['choice', 'Opción múltiple'], ['open', 'Abierta numérica']].map(([val, label]) => (
+                  <div className="flex flex-wrap gap-2">
+                    {[['choice', 'Opción múltiple'], ['open', 'Abierta numérica'], ['text', 'Texto libre']].map(([val, label]) => (
                       <button type="button" key={val} onClick={() => setQForm({ ...qForm, type: val })}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium ${qForm.type === val ? 'bg-espe-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                         {label}
@@ -909,7 +909,7 @@ export default function AdminPage() {
                     ))}
                   </div>
 
-                  {qForm.type === 'choice' ? (
+                  {qForm.type === 'choice' && (
                     <div className="space-y-2">
                       <p className="text-xs text-gray-400">Opciones (el jurado elige una con un clic). Etiqueta + puntos.</p>
                       {qForm.options.map((o, i) => (
@@ -921,11 +921,17 @@ export default function AdminPage() {
                       ))}
                       <button type="button" onClick={addOption} className="text-xs font-semibold text-espe-700 hover:underline">+ Agregar opción</button>
                     </div>
-                  ) : (
+                  )}
+
+                  {qForm.type === 'open' && (
                     <div className="flex items-center gap-2">
                       <label className="text-sm text-gray-600">Puntaje máximo:</label>
                       <input type="number" min="1" value={qForm.maxScore} onChange={e => setQForm({ ...qForm, maxScore: e.target.value })} className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" required />
                     </div>
+                  )}
+
+                  {qForm.type === 'text' && (
+                    <p className="text-xs text-gray-400">Respuesta de texto libre (observaciones). No suma puntos al /20.</p>
                   )}
 
                   <button className="bg-espe-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-espe-700">{editingQuestionId ? 'Guardar cambios' : 'Agregar pregunta'}</button>
@@ -942,7 +948,9 @@ export default function AdminPage() {
                         <p className="text-xs text-gray-400 mt-0.5">
                           {q.type === 'choice'
                             ? `Opción múltiple · ${q.options.map(o => `${o.label} (${o.points})`).join(' · ')}`
-                            : `Abierta numérica · máx ${q.maxScore}`}
+                            : q.type === 'text'
+                              ? 'Texto libre · no puntuado'
+                              : `Abierta numérica · máx ${q.maxScore}`}
                         </p>
                       </div>
                       <div className="flex gap-3 flex-shrink-0">

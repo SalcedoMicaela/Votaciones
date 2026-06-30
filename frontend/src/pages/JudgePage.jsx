@@ -107,7 +107,7 @@ function JudgeScore({ token, name, onLogout }) {
       const init = {}
       res.data.teams.forEach(t => {
         init[t.id] = {}
-        if (t.myScore) t.myScore.answers.forEach(a => { init[t.id][a.questionId] = a.points })
+        if (t.myScore) t.myScore.answers.forEach(a => { init[t.id][a.questionId] = a.text !== undefined ? a.text : a.points })
       })
       setAnswers(init)
     } catch (err) {
@@ -123,14 +123,20 @@ function JudgeScore({ token, name, onLogout }) {
     setAnswers(prev => ({ ...prev, [teamId]: { ...prev[teamId], [questionId]: v } }))
   }
 
+  function setText(teamId, questionId, value) {
+    setAnswers(prev => ({ ...prev, [teamId]: { ...prev[teamId], [questionId]: value } }))
+  }
+
   function teamTotal(teamId) {
-    return questions.reduce((s, q) => s + (Number(answers[teamId]?.[q.id]) || 0), 0)
+    return questions.reduce((s, q) => q.type === 'text' ? s : s + (Number(answers[teamId]?.[q.id]) || 0), 0)
   }
 
   async function save(teamId) {
     setSaving(teamId)
     try {
-      const payload = questions.map(q => ({ questionId: q.id, points: Number(answers[teamId]?.[q.id]) || 0 }))
+      const payload = questions.map(q => q.type === 'text'
+        ? { questionId: q.id, text: String(answers[teamId]?.[q.id] ?? '') }
+        : { questionId: q.id, points: Number(answers[teamId]?.[q.id]) || 0 })
       await axios.post(`${API}/api/judges/score`, { teamId, answers: payload }, headers)
       setTeams(prev => prev.map(t => t.id === teamId ? { ...t, myScore: { total: teamTotal(teamId) } } : t))
       setSavedId(teamId)
@@ -220,6 +226,14 @@ function JudgeScore({ token, name, onLogout }) {
                           )
                         })}
                       </div>
+                    ) : q.type === 'text' ? (
+                      <textarea
+                        rows="2"
+                        value={answers[team.id]?.[q.id] ?? ''}
+                        onChange={e => setText(team.id, q.id, e.target.value)}
+                        placeholder="Escribe tu observación..."
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400"
+                      />
                     ) : (
                       <div className="flex items-center gap-2">
                         <input
