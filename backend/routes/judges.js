@@ -57,7 +57,13 @@ router.get('/teams', judgeAuth, async (req, res) => {
     const judgeId = req.judge._id.toString()
 
     const questions = (await db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray())
-      .map(q => ({ id: q._id.toString(), text: q.text, maxScore: q.maxScore }))
+      .map(q => ({
+        id: q._id.toString(),
+        text: q.text,
+        type: q.type || 'open',
+        options: q.options || [],
+        maxScore: q.maxScore,
+      }))
 
     const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
       .filter(t => isActive(t, phase))

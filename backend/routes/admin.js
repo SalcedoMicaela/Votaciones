@@ -225,7 +225,37 @@ router.post('/reset-votes', adminAuth, async (req, res) => {
 
 // ===================== RÚBRICA (preguntas) =====================
 function mapQuestion(q) {
-  return { id: q._id.toString(), text: q.text, maxScore: q.maxScore, order: q.order || 0 }
+  return {
+    id: q._id.toString(),
+    text: q.text,
+    type: q.type || 'open',
+    options: q.options || [],
+    maxScore: q.maxScore,
+    order: q.order || 0,
+  }
+}
+
+// Construye los campos de una pregunta según su tipo.
+// 'choice' -> opciones [{label, points}], maxScore = mayor puntaje de las opciones.
+// 'open'   -> el jurado escribe un número 0..maxScore.
+function buildQuestionFields(body) {
+  const text = String(body.text || '').trim()
+  const type = body.type === 'choice' ? 'choice' : 'open'
+  if (type === 'choice') {
+    const options = (Array.isArray(body.options) ? body.options : [])
+      .map(o => ({ label: String(o.label ?? '').trim(), points: Number(o.points) || 0 }))
+      .filter(o => o.label !== '')
+    const maxScore = options.reduce((m, o) => Math.max(m, o.points), 0)
+    return { text, type, options, maxScore }
+  }
+  return { text, type, options: [], maxScore: Number(body.maxScore) || 0 }
+}
+
+function validateQuestion(fields) {
+  if (!fields.text) return 'El texto de la pregunta es requerido'
+  if (fields.type === 'choice' && fields.options.length < 1) return 'Agrega al menos una opción'
+  if (fields.type === 'open' && !(fields.maxScore > 0)) return 'El puntaje máximo debe ser mayor a 0'
+  return null
 }
 
 router.get('/questions', async (req, res) => {
@@ -236,29 +266,28 @@ router.get('/questions', async (req, res) => {
 })
 
 router.post('/questions', adminAuth, async (req, res) => {
-  const { text, maxScore, order } = req.body
-  if (!text || !(Number(maxScore) > 0)) {
-    return res.status(400).json({ error: 'Texto y puntaje máximo (mayor a 0) requeridos' })
-  }
+  const fields = buildQuestionFields(req.body)
+  const err = validateQuestion(fields)
+  if (err) return res.status(400).json({ error: err })
   try {
-    const doc = { text: String(text).trim(), maxScore: Number(maxScore), order: Number(order) || 0, createdAt: new Date() }
+    const doc = { ...fields, order: Number(req.body.order) || 0, createdAt: new Date() }
     const r = await getDb().collection('questions').insertOne(doc)
     res.json(mapQuestion({ ...doc, _id: r.insertedId }))
-  } catch (err) { res.status(500).json({ error: err.message }) }
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 router.put('/questions/:id', adminAuth, async (req, res) => {
   const { id } = req.params
   if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Pregunta no encontrada' })
-  const { text, maxScore, order } = req.body
-  const set = {}
-  if (text !== undefined) set.text = String(text).trim()
-  if (maxScore !== undefined) set.maxScore = Number(maxScore)
-  if (order !== undefined) set.order = Number(order)
+  const fields = buildQuestionFields(req.body)
+  const err = validateQuestion(fields)
+  if (err) return res.status(400).json({ error: err })
+  const set = { ...fields }
+  if (req.body.order !== undefined) set.order = Number(req.body.order)
   try {
     await getDb().collection('questions').updateOne({ _id: new ObjectId(id) }, { $set: set })
     res.json({ ok: true })
-  } catch (err) { res.status(500).json({ error: err.message }) }
+  } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
 router.delete('/questions/:id', adminAuth, async (req, res) => {

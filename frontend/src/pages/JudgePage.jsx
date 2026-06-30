@@ -199,17 +199,38 @@ function JudgeScore({ token, name, onLogout }) {
                 {team.myScore && <span className="inline-flex items-center gap-1 text-xs font-semibold text-espe-700"><Check className="w-4 h-4" /> {team.myScore.total}/20</span>}
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-4">
                 {questions.map(q => (
-                  <div key={q.id} className="flex items-center gap-3">
-                    <label className="flex-1 text-sm text-gray-600">{q.text}</label>
-                    <input
-                      type="number" min="0" max={q.maxScore} step="0.5"
-                      value={answers[team.id]?.[q.id] ?? ''}
-                      onChange={e => setPoints(team.id, q.id, e.target.value, q.maxScore)}
-                      className="w-20 border rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-espe-400"
-                    />
-                    <span className="text-xs text-gray-400 w-10">/ {q.maxScore}</span>
+                  <div key={q.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
+                    <p className="text-sm font-medium text-gray-700 mb-2">{q.text}</p>
+                    {q.type === 'choice' ? (
+                      <div className="flex flex-wrap gap-2">
+                        {q.options.map((o, idx) => {
+                          const selected = answers[team.id]?.[q.id] === o.points
+                          return (
+                            <button
+                              type="button" key={idx}
+                              onClick={() => setPoints(team.id, q.id, o.points, q.maxScore)}
+                              className={`px-3 py-2 rounded-lg text-sm border transition ${
+                                selected ? 'bg-espe-600 text-white border-espe-600' : 'bg-white text-gray-600 border-gray-200 hover:border-espe-300'
+                              }`}
+                            >
+                              {o.label} <span className="opacity-70">({o.points})</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number" min="0" max={q.maxScore} step="0.5"
+                          value={answers[team.id]?.[q.id] ?? ''}
+                          onChange={e => setPoints(team.id, q.id, e.target.value, q.maxScore)}
+                          className="w-24 border rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-espe-400"
+                        />
+                        <span className="text-xs text-gray-400">/ {q.maxScore} pts</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

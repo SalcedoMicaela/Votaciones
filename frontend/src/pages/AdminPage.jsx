@@ -53,7 +53,9 @@ export default function AdminPage() {
   const [ranking, setRanking] = useState([])
   const [rankingPhase, setRankingPhase] = useState(1)
   const [judgeForm, setJudgeForm] = useState({ name: '', username: '', password: '' })
-  const [qForm, setQForm] = useState({ text: '', maxScore: 5 })
+  const emptyQForm = { text: '', type: 'choice', maxScore: 5, options: [{ label: '0', points: 0 }, { label: '1', points: 1 }, { label: '2', points: 2 }, { label: '3', points: 3 }] }
+  const [qForm, setQForm] = useState(emptyQForm)
+  const [editingQuestionId, setEditingQuestionId] = useState(null)
   const [advanceCount, setAdvanceCount] = useState(10)
   const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false)
 
@@ -288,18 +290,54 @@ export default function AdminPage() {
     if (!confirm('¿Eliminar este jurado?')) return
     try { await axios.delete(`${API}/api/admin/judges/${id}`, authHeaders()); loadJudges() } catch (e) {}
   }
-  async function addQuestion(e) {
-    e.preventDefault()
-    try {
-      await axios.post(`${API}/api/admin/questions`, qForm, authHeaders())
-      setQForm({ text: '', maxScore: 5 })
-      loadQuestions()
-    } catch (err) { showToast(err.response?.data?.error || 'Error') }
+  function resetQForm() {
+    setQForm(emptyQForm)
+    setEditingQuestionId(null)
   }
-  async function updateQuestion(id, patch) {
-    try { await axios.put(`${API}/api/admin/questions/${id}`, patch, authHeaders()); loadQuestions() } catch (e) {}
+  function addOption() {
+    setQForm(prev => ({ ...prev, options: [...prev.options, { label: '', points: 0 }] }))
+  }
+  function updateOption(i, field, value) {
+    setQForm(prev => {
+      const options = prev.options.slice()
+      options[i] = { ...options[i], [field]: value }
+      return { ...prev, options }
+    })
+  }
+  function removeOption(i) {
+    setQForm(prev => ({ ...prev, options: prev.options.filter((_, idx) => idx !== i) }))
+  }
+  function editQuestion(q) {
+    setQForm({
+      text: q.text,
+      type: q.type || 'open',
+      maxScore: q.maxScore,
+      options: (q.options && q.options.length) ? q.options.map(o => ({ label: o.label, points: o.points })) : [{ label: '', points: 0 }],
+    })
+    setEditingQuestionId(q.id)
+  }
+  async function saveQuestion(e) {
+    e.preventDefault()
+    const payload = {
+      text: qForm.text,
+      type: qForm.type,
+      maxScore: Number(qForm.maxScore) || 0,
+      options: qForm.options.map(o => ({ label: o.label, points: Number(o.points) || 0 })),
+    }
+    try {
+      if (editingQuestionId) {
+        await axios.put(`${API}/api/admin/questions/${editingQuestionId}`, payload, authHeaders())
+        showToast('Pregunta actualizada')
+      } else {
+        await axios.post(`${API}/api/admin/questions`, payload, authHeaders())
+        showToast('Pregunta agregada')
+      }
+      resetQForm()
+      loadQuestions()
+    } catch (err) { showToast(err.response?.data?.error || 'Error al guardar la pregunta') }
   }
   async function deleteQuestion(id) {
+    if (!confirm('¿Eliminar esta pregunta?')) return
     try { await axios.delete(`${API}/api/admin/questions/${id}`, authHeaders()); loadQuestions() } catch (e) {}
   }
   async function advancePhase() {
@@ -847,31 +885,74 @@ export default function AdminPage() {
             <div className="space-y-6 max-w-2xl">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h1 className="text-2xl font-bold text-gray-800">Rúbrica de calificación</h1>
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${questionsTotal === 20 ? 'bg-espe-50 text-espe-700' : 'bg-yellow-50 text-yellow-700'}`}>Total: {questionsTotal} / 20</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${questionsTotal === 20 ? 'bg-espe-50 text-espe-700' : 'bg-yellow-50 text-yellow-700'}`}>Total máximo: {questionsTotal} / 20</span>
               </div>
               {questions.length > 0 && questionsTotal !== 20 && (
-                <p className="text-sm text-yellow-600">La suma de los puntajes debería ser 20 (actualmente {questionsTotal}).</p>
+                <p className="text-sm text-yellow-600">La suma de los puntajes máximos debería dar 20 (actualmente {questionsTotal}).</p>
               )}
+
+              {/* Constructor de pregunta */}
               <div className="bg-white p-5 rounded-2xl shadow-sm">
-                <h2 className="font-semibold mb-3">Agregar pregunta</h2>
-                <form onSubmit={addQuestion} className="flex flex-col sm:flex-row gap-3">
-                  <input value={qForm.text} onChange={e => setQForm({ ...qForm, text: e.target.value })} placeholder="Texto de la pregunta" className={`${inputClass} flex-1`} required />
-                  <input type="number" min="1" value={qForm.maxScore} onChange={e => setQForm({ ...qForm, maxScore: e.target.value })} placeholder="Máx" className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" required />
-                  <button className="bg-espe-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-espe-700">Agregar</button>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-semibold">{editingQuestionId ? 'Editar pregunta' : 'Agregar pregunta'}</h2>
+                  {editingQuestionId && <button type="button" onClick={resetQForm} className="text-xs text-gray-500 hover:underline">Cancelar</button>}
+                </div>
+                <form onSubmit={saveQuestion} className="space-y-3">
+                  <input value={qForm.text} onChange={e => setQForm({ ...qForm, text: e.target.value })} placeholder="Texto de la pregunta / criterio" className={inputClass} required />
+
+                  <div className="flex gap-2">
+                    {[['choice', 'Opción múltiple'], ['open', 'Abierta numérica']].map(([val, label]) => (
+                      <button type="button" key={val} onClick={() => setQForm({ ...qForm, type: val })}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium ${qForm.type === val ? 'bg-espe-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {qForm.type === 'choice' ? (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-400">Opciones (el jurado elige una con un clic). Etiqueta + puntos.</p>
+                      {qForm.options.map((o, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input value={o.label} onChange={e => updateOption(i, 'label', e.target.value)} placeholder="Etiqueta (ej. Excelente)" className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                          <input type="number" value={o.points} onChange={e => updateOption(i, 'points', e.target.value)} placeholder="pts" className="w-20 border rounded px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                          <button type="button" onClick={() => removeOption(i)} className="text-red-500 hover:text-red-700 text-lg leading-none">×</button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addOption} className="text-xs font-semibold text-espe-700 hover:underline">+ Agregar opción</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Puntaje máximo:</label>
+                      <input type="number" min="1" value={qForm.maxScore} onChange={e => setQForm({ ...qForm, maxScore: e.target.value })} className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" required />
+                    </div>
+                  )}
+
+                  <button className="bg-espe-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-espe-700">{editingQuestionId ? 'Guardar cambios' : 'Agregar pregunta'}</button>
                 </form>
               </div>
+
+              {/* Lista de preguntas */}
               <div className="space-y-2">
                 {questions.map(q => (
-                  <div key={q.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3">
-                    <input defaultValue={q.text} onBlur={e => { if (e.target.value.trim() && e.target.value !== q.text) updateQuestion(q.id, { text: e.target.value }) }}
-                      className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
-                    <input type="number" min="1" defaultValue={q.maxScore} onBlur={e => { if (Number(e.target.value) > 0 && Number(e.target.value) !== q.maxScore) updateQuestion(q.id, { maxScore: Number(e.target.value) }) }}
-                      className="w-20 border rounded px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-espe-400" />
-                    <span className="text-xs text-gray-400">pts</span>
-                    <button onClick={() => deleteQuestion(q.id)} className="text-red-500 hover:text-red-700 text-lg leading-none">×</button>
+                  <div key={q.id} className="bg-white p-4 rounded-xl shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-700">{q.text}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {q.type === 'choice'
+                            ? `Opción múltiple · ${q.options.map(o => `${o.label} (${o.points})`).join(' · ')}`
+                            : `Abierta numérica · máx ${q.maxScore}`}
+                        </p>
+                      </div>
+                      <div className="flex gap-3 flex-shrink-0">
+                        <button onClick={() => editQuestion(q)} className="text-espe-700 hover:underline text-sm">Editar</button>
+                        <button onClick={() => deleteQuestion(q.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                      </div>
+                    </div>
                   </div>
                 ))}
-                {questions.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">Sin preguntas. Agrega las preguntas de la rúbrica (la suma debe dar 20).</p>}
+                {questions.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">Sin preguntas. Agrega las preguntas de la rúbrica (la suma de máximos debe dar 20).</p>}
               </div>
             </div>
           )}
