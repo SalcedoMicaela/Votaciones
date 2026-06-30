@@ -6,7 +6,7 @@ import socket from '../socket'
 import { resizeImage } from '../utils/image'
 import { whatsappLink, downloadQr, safeFilename } from '../utils/qr'
 import { ejeInfo } from '../utils/eje'
-import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw } from 'lucide-react'
+import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -17,6 +17,9 @@ const SECTIONS = [
   { key: 'resumen', label: 'Resumen', Icon: LayoutDashboard },
   { key: 'equipos', label: 'Equipos', Icon: Users },
   { key: 'votacion', label: 'Votación', Icon: Vote },
+  { key: 'fases', label: 'Fases', Icon: Layers },
+  { key: 'jurados', label: 'Jurados', Icon: UserCog },
+  { key: 'rubrica', label: 'Rúbrica', Icon: ClipboardList },
   { key: 'qr', label: 'QR y enlaces', Icon: QrCode },
   { key: 'config', label: 'Configuración', Icon: Settings },
 ]
@@ -43,6 +46,16 @@ export default function AdminPage() {
   const [query, setQuery] = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [ejeFilter, setEjeFilter] = useState('all')
+  // Fases / jurados / rúbrica
+  const [judges, setJudges] = useState([])
+  const [questions, setQuestions] = useState([])
+  const [phaseNum, setPhaseNum] = useState(1)
+  const [ranking, setRanking] = useState([])
+  const [rankingPhase, setRankingPhase] = useState(1)
+  const [judgeForm, setJudgeForm] = useState({ name: '', username: '', password: '' })
+  const [qForm, setQForm] = useState({ text: '', maxScore: 5 })
+  const [advanceCount, setAdvanceCount] = useState(10)
+  const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false)
 
   useEffect(() => {
     if (!authenticated) return
@@ -50,13 +63,21 @@ export default function AdminPage() {
     loadStatus()
     loadLinks()
     loadResults()
-    const onVote = d => setResults(d)
+    loadJudges()
+    loadQuestions()
+    loadPhaseAndRanking()
+    const onVote = d => { setResults(d); loadRanking() }
     const onToggle = a => setVotingActive(a)
+    const onScore = () => loadRanking()
     socket.on('vote:update', onVote)
     socket.on('voting:toggle', onToggle)
+    socket.on('score:update', onScore)
+    socket.on('phase:update', loadPhaseAndRanking)
     return () => {
       socket.off('vote:update', onVote)
       socket.off('voting:toggle', onToggle)
+      socket.off('score:update', onScore)
+      socket.off('phase:update', loadPhaseAndRanking)
     }
   }, [authenticated])
 
@@ -231,9 +252,69 @@ export default function AdminPage() {
     }
   }
 
+  // --- Fases / jurados / rúbrica ---
+  async function loadJudges() {
+    try { setJudges((await axios.get(`${API}/api/admin/judges`, authHeaders())).data) } catch (e) {}
+  }
+  async function loadQuestions() {
+    try { setQuestions((await axios.get(`${API}/api/admin/questions`)).data) } catch (e) {}
+  }
+  async function loadRanking(ph) {
+    try {
+      const phaseQ = ph ?? rankingPhase
+      const res = await axios.get(`${API}/api/admin/ranking`, { params: { phase: phaseQ } })
+      setRanking(res.data.ranking)
+    } catch (e) {}
+  }
+  async function loadPhaseAndRanking() {
+    try {
+      const res = await axios.get(`${API}/api/admin/phase`)
+      setPhaseNum(res.data.phase)
+      setRankingPhase(res.data.phase)
+      const r = await axios.get(`${API}/api/admin/ranking`, { params: { phase: res.data.phase } })
+      setRanking(r.data.ranking)
+    } catch (e) {}
+  }
+  async function createJudge(e) {
+    e.preventDefault()
+    try {
+      await axios.post(`${API}/api/admin/judges`, judgeForm, authHeaders())
+      setJudgeForm({ name: '', username: '', password: '' })
+      loadJudges()
+      showToast('Jurado creado')
+    } catch (err) { showToast(err.response?.data?.error || 'Error al crear jurado') }
+  }
+  async function deleteJudge(id) {
+    if (!confirm('¿Eliminar este jurado?')) return
+    try { await axios.delete(`${API}/api/admin/judges/${id}`, authHeaders()); loadJudges() } catch (e) {}
+  }
+  async function addQuestion(e) {
+    e.preventDefault()
+    try {
+      await axios.post(`${API}/api/admin/questions`, qForm, authHeaders())
+      setQForm({ text: '', maxScore: 5 })
+      loadQuestions()
+    } catch (err) { showToast(err.response?.data?.error || 'Error') }
+  }
+  async function updateQuestion(id, patch) {
+    try { await axios.put(`${API}/api/admin/questions/${id}`, patch, authHeaders()); loadQuestions() } catch (e) {}
+  }
+  async function deleteQuestion(id) {
+    try { await axios.delete(`${API}/api/admin/questions/${id}`, authHeaders()); loadQuestions() } catch (e) {}
+  }
+  async function advancePhase() {
+    try {
+      const res = await axios.post(`${API}/api/admin/advance`, { count: Number(advanceCount) }, authHeaders())
+      setShowAdvanceConfirm(false)
+      showToast(`Fase ${res.data.phase}: pasaron ${res.data.passed} equipos`)
+      loadPhaseAndRanking(); loadTeams(); loadStatus(); loadResults()
+    } catch (err) { showToast(err.response?.data?.error || 'Error al avanzar de fase') }
+  }
+
   const votos = results.total || 0
   const sortedResults = useMemo(() => [...(results.results || [])].sort((a, b) => b.votes - a.votes), [results])
   const conImagenes = teams.filter(t => t.logo || t.photo).length
+  const questionsTotal = questions.reduce((s, q) => s + (Number(q.maxScore) || 0), 0)
 
   const filteredTeams = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -661,6 +742,155 @@ export default function AdminPage() {
                   <input type="password" value={pwForm.confirmar} onChange={e => setPwForm({ ...pwForm, confirmar: e.target.value })} placeholder="Confirmar nueva contraseña" className={inputClass} />
                   <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">Cambiar contraseña</button>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* ===== FASES / RANKING ===== */}
+          {section === 'fases' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h1 className="text-2xl font-bold text-gray-800">Fases y ranking</h1>
+                <span className="px-3 py-1 rounded-full text-sm font-semibold bg-espe-50 text-espe-700 ring-1 ring-espe-200">Fase actual: {phaseNum}</span>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl shadow-sm flex flex-wrap items-end gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">¿Cuántos equipos pasan?</label>
+                  <input type="number" min="1" value={advanceCount} onChange={e => setAdvanceCount(e.target.value)}
+                    className="w-28 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" />
+                </div>
+                <button onClick={() => setShowAdvanceConfirm(true)} className="bg-espe-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-espe-700">
+                  Cerrar fase y avanzar
+                </button>
+                <p className="text-xs text-gray-400 flex-1 min-w-[220px]">
+                  Al avanzar, los mejores {advanceCount} pasan a la fase {phaseNum + 1}, se cierra la votación, y los votos y notas de esta fase quedan guardados.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-gray-500">Ver ranking de la fase:</span>
+                {Array.from({ length: phaseNum }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => { setRankingPhase(p); loadRanking(p) }}
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${rankingPhase === p ? 'bg-gray-800 text-white' : 'bg-white ring-1 ring-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+                    Fase {p}
+                  </button>
+                ))}
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
+                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                    <tr>
+                      <th className="px-3 py-2 text-left">#</th>
+                      <th className="px-3 py-2 text-left">Equipo</th>
+                      <th className="px-3 py-2 text-right">Nota /20</th>
+                      <th className="px-3 py-2 text-right">Jur.</th>
+                      <th className="px-3 py-2 text-right">Votos</th>
+                      <th className="px-3 py-2 text-right">Pts nota</th>
+                      <th className="px-3 py-2 text-right">Pts votos</th>
+                      <th className="px-3 py-2 text-right">Final /20</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {ranking.map((r, i) => (
+                      <tr key={r.id} className={i < Number(advanceCount) && rankingPhase === phaseNum ? 'bg-espe-50/40' : ''}>
+                        <td className="px-3 py-2 font-bold text-gray-400">{i + 1}</td>
+                        <td className="px-3 py-2 font-medium text-gray-700">
+                          {i < 3 && <Trophy className="inline w-4 h-4 text-yellow-500 mr-1" />}{r.name}
+                        </td>
+                        <td className="px-3 py-2 text-right">{r.notaJurados}</td>
+                        <td className="px-3 py-2 text-right text-gray-400">{r.numJurados}</td>
+                        <td className="px-3 py-2 text-right">{r.votos}</td>
+                        <td className="px-3 py-2 text-right text-gray-500">{r.puntosNota}</td>
+                        <td className="px-3 py-2 text-right text-gray-500">{r.puntosVotos}</td>
+                        <td className="px-3 py-2 text-right font-bold text-espe-700">{r.final}</td>
+                      </tr>
+                    ))}
+                    {ranking.length === 0 && (
+                      <tr><td colSpan="8" className="px-3 py-8 text-center text-gray-400">Sin datos en esta fase aún.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ===== JURADOS ===== */}
+          {section === 'jurados' && (
+            <div className="space-y-6 max-w-2xl">
+              <h1 className="text-2xl font-bold text-gray-800">Jurados ({judges.length})</h1>
+              <div className="bg-white p-5 rounded-2xl shadow-sm">
+                <h2 className="font-semibold mb-3">Agregar jurado</h2>
+                <form onSubmit={createJudge} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input value={judgeForm.name} onChange={e => setJudgeForm({ ...judgeForm, name: e.target.value })} placeholder="Nombre" className={inputClass} required />
+                  <input value={judgeForm.username} onChange={e => setJudgeForm({ ...judgeForm, username: e.target.value })} placeholder="Usuario" className={inputClass} required />
+                  <input value={judgeForm.password} onChange={e => setJudgeForm({ ...judgeForm, password: e.target.value })} placeholder="Contraseña" className={inputClass} required />
+                  <button className="sm:col-span-3 justify-self-start bg-espe-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-espe-700">Agregar jurado</button>
+                </form>
+                <p className="text-xs text-gray-400 mt-2">Los jurados ingresan en <span className="font-mono text-espe-700">/jurado</span> con su usuario y contraseña.</p>
+              </div>
+              <div className="space-y-2">
+                {judges.map(j => (
+                  <div key={j.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
+                    <div><p className="font-semibold text-gray-700">{j.name}</p><p className="text-xs text-gray-400">usuario: {j.username}</p></div>
+                    <button onClick={() => deleteJudge(j.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
+                  </div>
+                ))}
+                {judges.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">No hay jurados registrados.</p>}
+              </div>
+            </div>
+          )}
+
+          {/* ===== RÚBRICA ===== */}
+          {section === 'rubrica' && (
+            <div className="space-y-6 max-w-2xl">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h1 className="text-2xl font-bold text-gray-800">Rúbrica de calificación</h1>
+                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${questionsTotal === 20 ? 'bg-espe-50 text-espe-700' : 'bg-yellow-50 text-yellow-700'}`}>Total: {questionsTotal} / 20</span>
+              </div>
+              {questions.length > 0 && questionsTotal !== 20 && (
+                <p className="text-sm text-yellow-600">La suma de los puntajes debería ser 20 (actualmente {questionsTotal}).</p>
+              )}
+              <div className="bg-white p-5 rounded-2xl shadow-sm">
+                <h2 className="font-semibold mb-3">Agregar pregunta</h2>
+                <form onSubmit={addQuestion} className="flex flex-col sm:flex-row gap-3">
+                  <input value={qForm.text} onChange={e => setQForm({ ...qForm, text: e.target.value })} placeholder="Texto de la pregunta" className={`${inputClass} flex-1`} required />
+                  <input type="number" min="1" value={qForm.maxScore} onChange={e => setQForm({ ...qForm, maxScore: e.target.value })} placeholder="Máx" className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" required />
+                  <button className="bg-espe-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-espe-700">Agregar</button>
+                </form>
+              </div>
+              <div className="space-y-2">
+                {questions.map(q => (
+                  <div key={q.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center gap-3">
+                    <input defaultValue={q.text} onBlur={e => { if (e.target.value.trim() && e.target.value !== q.text) updateQuestion(q.id, { text: e.target.value }) }}
+                      className="flex-1 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                    <input type="number" min="1" defaultValue={q.maxScore} onBlur={e => { if (Number(e.target.value) > 0 && Number(e.target.value) !== q.maxScore) updateQuestion(q.id, { maxScore: Number(e.target.value) }) }}
+                      className="w-20 border rounded px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-espe-400" />
+                    <span className="text-xs text-gray-400">pts</span>
+                    <button onClick={() => deleteQuestion(q.id)} className="text-red-500 hover:text-red-700 text-lg leading-none">×</button>
+                  </div>
+                ))}
+                {questions.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">Sin preguntas. Agrega las preguntas de la rúbrica (la suma debe dar 20).</p>}
+              </div>
+            </div>
+          )}
+
+          {/* MODAL CONFIRMAR AVANCE DE FASE */}
+          {showAdvanceConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fadeIn" onClick={() => setShowAdvanceConfirm(false)}>
+              <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-espe-100 flex items-center justify-center">
+                  <Layers className="w-8 h-8 text-espe-700" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Cerrar fase {phaseNum}</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Pasarán los <strong>{advanceCount} mejores</strong> equipos a la <strong>fase {phaseNum + 1}</strong>. Se cerrará la votación. Los votos y notas de esta fase se conservan.
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowAdvanceConfirm(false)} className="flex-1 py-2.5 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition">Cancelar</button>
+                  <button onClick={advancePhase} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-espe-600 hover:bg-espe-700 transition">Sí, avanzar</button>
+                </div>
               </div>
             </div>
           )}

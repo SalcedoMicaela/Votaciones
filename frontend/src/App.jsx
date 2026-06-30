@@ -4,6 +4,7 @@ import AdminPage from './pages/AdminPage'
 import ResultsPage from './pages/ResultsPage'
 import UploadPage from './pages/UploadPage'
 import VoteTeamPage from './pages/VoteTeamPage'
+import JudgePage from './pages/JudgePage'
 import Logo from './components/Logo'
 
 const navClass = ({ isActive }) =>
@@ -25,6 +26,7 @@ export default function App() {
           <nav className="flex items-center gap-1 flex-shrink-0">
             <NavLink to="/" end className={navClass}>Votar</NavLink>
             <NavLink to="/results" className={navClass}>Resultados</NavLink>
+            <NavLink to="/jurado" className={navClass}>Jurado</NavLink>
             <NavLink to="/admin" className={navClass}>Admin</NavLink>
           </nav>
         </div>
@@ -37,6 +39,7 @@ export default function App() {
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/subir/:token" element={<UploadPage />} />
           <Route path="/votar/:teamId" element={<VoteTeamPage />} />
+          <Route path="/jurado" element={<JudgePage />} />
         </Routes>
       </main>
 

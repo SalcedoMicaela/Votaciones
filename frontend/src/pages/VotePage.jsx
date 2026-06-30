@@ -30,6 +30,7 @@ export default function VotePage() {
   const [search, setSearch] = useState('')
   const [pendingTeam, setPendingTeam] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [phase, setPhase] = useState(1)
   const emailRef = useRef(null)
 
   const emailValid = EMAIL_RE.test(email.trim())
@@ -38,16 +39,19 @@ export default function VotePage() {
     loadData()
     socket.on('voting:toggle', active => setVotingActive(active))
     socket.on('team:update', loadTeams)
+    socket.on('phase:update', loadData)
     return () => {
       socket.off('voting:toggle')
       socket.off('team:update', loadTeams)
+      socket.off('phase:update', loadData)
     }
   }, [])
 
   async function loadTeams() {
     try {
-      const res = await axios.get(`${API}/api/admin/teams`)
-      setTeams(res.data)
+      const res = await axios.get(`${API}/api/vote/teams`)
+      setTeams(res.data.teams)
+      setPhase(res.data.phase)
     } catch (err) {
       console.error(err)
     }
@@ -57,11 +61,12 @@ export default function VotePage() {
     try {
       const saved = localStorage.getItem('voterEmail') || ''
       const [teamsRes, statusRes, deviceRes] = await Promise.all([
-        axios.get(`${API}/api/admin/teams`),
+        axios.get(`${API}/api/vote/teams`),
         axios.get(`${API}/api/admin/status`),
         axios.get(`${API}/api/vote/check-device`, { params: { deviceId: getDeviceId() } }),
       ])
-      setTeams(teamsRes.data)
+      setTeams(teamsRes.data.teams)
+      setPhase(teamsRes.data.phase)
       setVotingActive(statusRes.data.votingActive)
       if (deviceRes.data.hasVoted) {
         setHasVoted(true)
@@ -181,13 +186,18 @@ export default function VotePage() {
         <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-800 mb-3">
           Vota por el mejor proyecto
         </h1>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border border-gray-200 bg-white shadow-sm">
-          <span className="relative flex h-2.5 w-2.5">
-            {votingActive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
-            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${votingActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+        <div className="inline-flex flex-wrap items-center justify-center gap-2">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-espe-50 text-espe-700 ring-1 ring-espe-200">
+            Fase {phase}
           </span>
-          <span className={votingActive ? 'text-emerald-700' : 'text-gray-500'}>
-            {votingActive ? 'Votación abierta' : 'Votación cerrada'}
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border border-gray-200 bg-white shadow-sm">
+            <span className="relative flex h-2.5 w-2.5">
+              {votingActive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${votingActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+            </span>
+            <span className={votingActive ? 'text-emerald-700' : 'text-gray-500'}>
+              {votingActive ? 'Votación abierta' : 'Votación cerrada'}
+            </span>
           </span>
         </div>
         <p className="text-sm text-gray-400 mt-2">
