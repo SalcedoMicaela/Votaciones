@@ -337,7 +337,7 @@ export default function AdminPage() {
                   )}
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-medium mb-1">Nombre</label>
                       <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className={inputClass} required />
@@ -351,13 +351,13 @@ export default function AdminPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium mb-1">Descripción</label>
-                      <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="2" />
-                    </div>
-                    <div>
                       <label className="block text-xs font-medium mb-1">WhatsApp</label>
                       <input type="tel" value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="0991234567" className={inputClass} />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Descripción</label>
+                    <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="4" />
                   </div>
 
                   <div className="flex flex-wrap gap-4 items-end">
