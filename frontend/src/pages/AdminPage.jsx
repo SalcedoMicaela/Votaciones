@@ -58,6 +58,7 @@ export default function AdminPage() {
   const [editingQuestionId, setEditingQuestionId] = useState(null)
   const [advanceCount, setAdvanceCount] = useState(10)
   const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false)
+  const [showRegressConfirm, setShowRegressConfirm] = useState(false)
   const [showJudgePw, setShowJudgePw] = useState(false)
   const [judgePasswords, setJudgePasswords] = useState({})
   const [weights, setWeights] = useState({ judgeMax: 18, voteMax: 2 })
@@ -368,6 +369,15 @@ export default function AdminPage() {
       setWeights({ judgeMax: jm, voteMax: vm })
       showToast('Ponderación actualizada')
     } catch (err) { showToast(err.response?.data?.error || 'Error al guardar') }
+  }
+
+  async function regressPhase() {
+    try {
+      await axios.post(`${API}/api/admin/regress`, {}, authHeaders())
+      setShowRegressConfirm(false)
+      showToast('Fase anterior restaurada')
+      loadPhaseAndRanking(); loadTeams(); loadStatus(); loadResults()
+    } catch (err) { showToast(err.response?.data?.error || 'Error al volver') }
   }
 
   async function advancePhase() {
@@ -835,6 +845,18 @@ export default function AdminPage() {
                 </p>
               </div>
 
+              {phaseNum > 1 && (
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-red-100 flex flex-wrap items-center gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">Volver a fase anterior</p>
+                    <p className="text-xs text-gray-500">Se borrarán los votos y calificaciones de la fase {phaseNum} y los equipos avanzados vuelven a la fase {phaseNum - 1}.</p>
+                  </div>
+                  <button onClick={() => setShowRegressConfirm(true)} className="bg-red-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-red-700 whitespace-nowrap">
+                    Volver a fase {phaseNum - 1}
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm text-gray-500">Ver ranking de la fase:</span>
                 {Array.from({ length: phaseNum }, (_, i) => i + 1).map(p => (
@@ -1023,6 +1045,25 @@ export default function AdminPage() {
                 <div className="flex gap-3">
                   <button onClick={() => setShowAdvanceConfirm(false)} className="flex-1 py-2.5 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition">Cancelar</button>
                   <button onClick={advancePhase} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-espe-600 hover:bg-espe-700 transition">Sí, avanzar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL CONFIRMAR REGRESAR FASE */}
+          {showRegressConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fadeIn" onClick={() => setShowRegressConfirm(false)}>
+              <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Volver a fase {phaseNum - 1}</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Se borrarán <strong>votos y calificaciones de la fase {phaseNum}</strong> y los equipos que avanzaron volverán a la fase {phaseNum - 1}. Esta acción no se puede deshacer.
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowRegressConfirm(false)} className="flex-1 py-2.5 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition">Cancelar</button>
+                  <button onClick={regressPhase} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-red-600 hover:bg-red-700 transition">Sí, volver</button>
                 </div>
               </div>
             </div>

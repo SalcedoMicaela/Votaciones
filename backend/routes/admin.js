@@ -430,4 +430,35 @@ router.post('/advance', adminAuth, async (req, res) => {
   }
 })
 
+// Volver a la fase anterior: borra datos de la fase actual y decrementa
+router.post('/regress', adminAuth, async (req, res) => {
+  try {
+    const db = getDb()
+    const phase = await getCurrentPhase(db)
+    if (phase <= 1) return res.status(400).json({ error: 'Ya estás en la fase 1, no se puede retroceder' })
+
+    const prevPhase = phase - 1
+
+    // Borrar votos y calificaciones de la fase actual
+    await db.collection('votes').deleteMany({ phase })
+    await db.collection('scores').deleteMany({ phase })
+
+    // Equipos que avanzaron en la fase anterior -> los regresa
+    await db.collection('teams').updateMany(
+      { phaseReached: phase },
+      { $set: { phaseReached: prevPhase } }
+    )
+
+    await setCurrentPhase(db, prevPhase)
+    await db.collection('settings').updateOne(
+      { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
+
+    req.app.get('io').emit('phase:update', { phase: prevPhase })
+    req.app.get('io').emit('voting:toggle', false)
+    res.json({ phase: prevPhase })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 module.exports = router
