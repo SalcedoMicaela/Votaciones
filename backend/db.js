@@ -56,6 +56,21 @@ async function connect() {
     await db.collection('settings').insertOne({ key: 'admin_password', value: hashPassword(defaultPw) })
   }
 
+  // Sembrar preguntas de rúbrica por defecto (solo si está vacío)
+  const qCount = await db.collection('questions').countDocuments()
+  if (qCount === 0) {
+    const defaultQuestions = [
+      { text: 'La idea de negocio presentada resuelve de manera clara un problema o necesidad real de un segmento de mercado definido.', type: 'choice', options: [{ label: 'No cumple', points: 0 }, { label: 'Parcialmente', points: 1 }, { label: 'Adecuadamente', points: 2 }, { label: 'Excelentemente', points: 3 }], maxScore: 3, order: 1, createdAt: new Date() },
+      { text: 'Existe una descripción explícita de un Modelo de Negocio que resalte el valor agregado del producto o servicio y ofrece un enfoque práctico para su implementación.', type: 'choice', options: [{ label: 'No cumple', points: 0 }, { label: 'Parcialmente', points: 1 }, { label: 'Adecuadamente', points: 2 }, { label: 'Excelentemente', points: 3 }], maxScore: 3, order: 2, createdAt: new Date() },
+      { text: 'El proyecto/idea de negocio tiene claro quiénes son y cuántos son sus clientes potenciales?', type: 'choice', options: [{ label: 'No cumple', points: 0 }, { label: 'Parcialmente', points: 1 }, { label: 'Adecuadamente', points: 2 }, { label: 'Excelentemente', points: 3 }], maxScore: 3, order: 3, createdAt: new Date() },
+      { text: 'Tiene una definición clara de la inversión, los costos e ingresos que su propuesta de emprendimiento podría generar.', type: 'choice', options: [{ label: 'No cumple', points: 0 }, { label: 'Parcialmente', points: 1 }, { label: 'Adecuadamente', points: 2 }, { label: 'Excelentemente', points: 3 }], maxScore: 3, order: 4, createdAt: new Date() },
+      { text: 'Presenta de manera estructurada, dinámica y gráfica la idea de negocio. La presentación del equipo es clara, concisa y dentro del tiempo establecido.', type: 'choice', options: [{ label: 'No cumple', points: 0 }, { label: 'Parcialmente', points: 1 }, { label: 'Adecuadamente', points: 2 }, { label: 'Excelentemente', points: 3 }], maxScore: 3, order: 5, createdAt: new Date() },
+      { text: 'Alguna observación o comentario, de ser necesario', type: 'text', options: [], maxScore: 0, order: 6, createdAt: new Date() },
+    ]
+    await db.collection('questions').insertMany(defaultQuestions)
+    console.log('Preguntas de rúbrica por defecto insertadas')
+  }
+
   console.log(`MongoDB conectado: base de datos "${dbName}"`)
   return db
 }
