@@ -944,6 +944,9 @@ export default function AdminPage() {
               {questions.length > 0 && questionsTotal !== 20 && (
                 <p className="text-sm text-yellow-600">La suma de los puntajes máximos debería dar 20 (actualmente {questionsTotal}).</p>
               )}
+              <div className="bg-espe-50 border border-espe-200 rounded-xl p-3 text-sm text-espe-800">
+                La nota del jurado se escala automáticamente. Ve a <button onClick={() => setSection('config')} className="font-semibold underline hover:text-espe-900">Configuración → Ponderación</button> para definir cuánto vale la calificación de jurados y cuánto los votos del público (ej. jurado 18/20, votos 2/20).
+              </div>
 
               {/* Constructor de pregunta */}
               <div className="bg-white p-5 rounded-2xl shadow-sm">
@@ -955,7 +958,7 @@ export default function AdminPage() {
                   <input value={qForm.text} onChange={e => setQForm({ ...qForm, text: e.target.value })} placeholder="Texto de la pregunta / criterio" className={inputClass} required />
 
                   <div className="flex flex-wrap gap-2">
-                    {[['choice', 'Opción múltiple'], ['open', 'Abierta numérica'], ['text', 'Texto libre']].map(([val, label]) => (
+                    {[['choice', 'Opción múltiple'], ['text', 'Texto libre']].map(([val, label]) => (
                       <button type="button" key={val} onClick={() => setQForm({ ...qForm, type: val })}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium ${qForm.type === val ? 'bg-espe-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                         {label}
@@ -974,13 +977,6 @@ export default function AdminPage() {
                         </div>
                       ))}
                       <button type="button" onClick={addOption} className="text-xs font-semibold text-espe-700 hover:underline">+ Agregar opción</button>
-                    </div>
-                  )}
-
-                  {qForm.type === 'open' && (
-                    <div className="flex items-center gap-2">
-                      <label className="text-sm text-gray-600">Puntaje máximo:</label>
-                      <input type="number" min="1" value={qForm.maxScore} onChange={e => setQForm({ ...qForm, maxScore: e.target.value })} className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" required />
                     </div>
                   )}
 
