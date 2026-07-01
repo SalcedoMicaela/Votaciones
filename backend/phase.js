@@ -1,4 +1,4 @@
-// Helpers de fase y ranking combinado (nota jurados 90% + votos 10% relativo al más votado)
+// Helpers de fase y ranking combinado (nota jurados 80% + votos 20% relativo al más votado)
 
 async function getCurrentPhase(db) {
   const s = await db.collection('settings').findOne({ key: 'current_phase' })
@@ -48,8 +48,8 @@ async function computeRanking(db, phase) {
     const id = t._id.toString()
     const nota = notas[id]?.avg || 0
     const v = votos[id] || 0
-    const puntosNota = nota * 0.9
-    const puntosVotos = maxVotos > 0 ? (v / maxVotos) * 2 : 0
+    const puntosNota = nota * 0.8
+    const puntosVotos = maxVotos > 0 ? (v / maxVotos) * 4 : 0
     return {
       id,
       name: t.name,

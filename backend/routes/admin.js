@@ -326,15 +326,18 @@ router.post('/judges', adminAuth, async (req, res) => {
     return res.status(400).json({ error: 'Nombre, usuario y contraseña (mín. 4) requeridos' })
   }
   try {
-    const doc = {
-      name,
-      username,
-      passwordHash: hashPassword(password),
-      token: makeToken(),
-      createdAt: new Date(),
-    }
-    const r = await getDb().collection('judges').insertOne(doc)
-    res.json(mapJudge({ ...doc, _id: r.insertedId }))
+      const doc = {
+        name,
+        username,
+        passwordHash: hashPassword(password),
+        token: makeToken(),
+        createdAt: new Date(),
+      }
+      const r = await getDb().collection('judges').insertOne(doc)
+      const judge = { ...doc, _id: r.insertedId }
+      const judgeResponse = mapJudge(judge)
+      judgeResponse.rawPassword = password
+      res.json(judgeResponse)
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ error: 'Ese usuario ya existe' })
     res.status(500).json({ error: err.message })

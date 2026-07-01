@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import axios from 'axios'
 import LogoBar from './LogoBar'
+import { Eye, EyeOff } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function AdminLogin({ onLogin }) {
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -31,17 +33,23 @@ export default function AdminLogin({ onLogin }) {
         <p className="text-sm text-gray-400">Panel del Club de Emprendimiento</p>
       </div>
       <form onSubmit={handleSubmit}>
-        <input
-          type="password"
-          value={password}
-          onChange={e => { setPassword(e.target.value); setError('') }}
-          placeholder="Contraseña de administrador"
-          className={`w-full border rounded-lg px-4 py-3 mb-2 focus:outline-none focus:ring-2 ${
-            error ? 'border-red-300 focus:ring-red-300' : 'focus:ring-espe-500'
-          }`}
-          required
-          autoFocus
-        />
+        <div className="relative mb-2">
+          <input
+            type={showPw ? 'text' : 'password'}
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError('') }}
+            placeholder="Contraseña de administrador"
+            className={`w-full border rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 ${
+              error ? 'border-red-300 focus:ring-red-300' : 'focus:ring-espe-500'
+            }`}
+            required
+            autoFocus
+          />
+          <button type="button" onClick={() => setShowPw(!showPw)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
         {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
         <button
           type="submit"

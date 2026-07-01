@@ -6,7 +6,7 @@ import socket from '../socket'
 import { resizeImage } from '../utils/image'
 import { whatsappLink, downloadQr, safeFilename } from '../utils/qr'
 import { ejeInfo } from '../utils/eje'
-import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy } from 'lucide-react'
+import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy, Eye, EyeOff } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -58,6 +58,8 @@ export default function AdminPage() {
   const [editingQuestionId, setEditingQuestionId] = useState(null)
   const [advanceCount, setAdvanceCount] = useState(10)
   const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false)
+  const [showJudgePw, setShowJudgePw] = useState(false)
+  const [judgePasswords, setJudgePasswords] = useState({})
 
   useEffect(() => {
     if (!authenticated) return
@@ -280,7 +282,8 @@ export default function AdminPage() {
   async function createJudge(e) {
     e.preventDefault()
     try {
-      await axios.post(`${API}/api/admin/judges`, judgeForm, authHeaders())
+      const res = await axios.post(`${API}/api/admin/judges`, judgeForm, authHeaders())
+      setJudgePasswords(prev => ({ ...prev, [res.data.id]: res.data.rawPassword }))
       setJudgeForm({ name: '', username: '', password: '' })
       loadJudges()
       showToast('Jurado creado')
@@ -863,17 +866,19 @@ export default function AdminPage() {
                 <form onSubmit={createJudge} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <input value={judgeForm.name} onChange={e => setJudgeForm({ ...judgeForm, name: e.target.value })} placeholder="Nombre" className={inputClass} required />
                   <input value={judgeForm.username} onChange={e => setJudgeForm({ ...judgeForm, username: e.target.value })} placeholder="Usuario" className={inputClass} required />
-                  <input value={judgeForm.password} onChange={e => setJudgeForm({ ...judgeForm, password: e.target.value })} placeholder="Contraseña" className={inputClass} required />
+                  <div className="relative">
+                    <input type={showJudgePw ? 'text' : 'password'} value={judgeForm.password} onChange={e => setJudgeForm({ ...judgeForm, password: e.target.value })} placeholder="Contraseña" className={`${inputClass} pr-10`} required />
+                    <button type="button" onClick={() => setShowJudgePw(!showJudgePw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showJudgePw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                   <button className="sm:col-span-3 justify-self-start bg-espe-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-espe-700">Agregar jurado</button>
                 </form>
                 <p className="text-xs text-gray-400 mt-2">Los jurados ingresan en <span className="font-mono text-espe-700">/jurado</span> con su usuario y contraseña.</p>
               </div>
               <div className="space-y-2">
                 {judges.map(j => (
-                  <div key={j.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
-                    <div><p className="font-semibold text-gray-700">{j.name}</p><p className="text-xs text-gray-400">usuario: {j.username}</p></div>
-                    <button onClick={() => deleteJudge(j.id)} className="text-red-600 hover:underline text-sm">Eliminar</button>
-                  </div>
+                  <JudgeCard key={j.id} judge={j} rawPassword={judgePasswords[j.id] || null} onDelete={() => deleteJudge(j.id)} />
                 ))}
                 {judges.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">No hay jurados registrados.</p>}
               </div>
@@ -1020,6 +1025,31 @@ function StatCard({ label, value, accent }) {
     <div className="bg-white rounded-2xl shadow-sm p-4">
       <p className="text-xs text-gray-400 mb-1">{label}</p>
       <p className={`text-2xl font-extrabold ${accent ? 'text-espe-700' : 'text-gray-800'}`}>{value}</p>
+    </div>
+  )
+}
+
+function JudgeCard({ judge, rawPassword, onDelete }) {
+  const [showPw, setShowPw] = useState(false)
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
+      <div>
+        <p className="font-semibold text-gray-700">{judge.name}</p>
+        <p className="text-xs text-gray-400">usuario: {judge.username}</p>
+        {rawPassword && (
+          <p className="text-xs text-espe-700 font-mono mt-1">
+            contraseña: {showPw ? rawPassword : '••••••••'}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        {rawPassword && (
+          <button type="button" onClick={() => setShowPw(!showPw)} className="text-gray-400 hover:text-gray-600" title={showPw ? 'Ocultar' : 'Mostrar'}>
+            {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        )}
+        <button onClick={onDelete} className="text-red-600 hover:underline text-sm">Eliminar</button>
+      </div>
     </div>
   )
 }

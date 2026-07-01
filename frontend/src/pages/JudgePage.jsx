@@ -3,7 +3,7 @@ import axios from 'axios'
 import LogoBar from '../components/LogoBar'
 import socket from '../socket'
 import { ejeInfo } from '../utils/eje'
-import { LogOut, Check, ClipboardList } from 'lucide-react'
+import { LogOut, Check, ClipboardList, Eye, EyeOff } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -31,6 +31,7 @@ export default function JudgePage() {
 function JudgeLogin({ onLogin }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -63,14 +64,20 @@ function JudgeLogin({ onLogin }) {
           className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-espe-500"
           required autoFocus
         />
-        <input
-          type="password"
-          value={password}
-          onChange={e => { setPassword(e.target.value); setError('') }}
-          placeholder="Contraseña"
-          className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 ${error ? 'border-red-300 focus:ring-red-300' : 'focus:ring-espe-500'}`}
-          required
-        />
+        <div className="relative">
+          <input
+            type={showPw ? 'text' : 'password'}
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError('') }}
+            placeholder="Contraseña"
+            className={`w-full border rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 ${error ? 'border-red-300 focus:ring-red-300' : 'focus:ring-espe-500'}`}
+            required
+          />
+          <button type="button" onClick={() => setShowPw(!showPw)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button type="submit" disabled={loading} className="w-full bg-espe-600 text-white py-3 rounded-lg hover:bg-espe-700 transition-colors font-semibold disabled:opacity-60">
           {loading ? 'Ingresando...' : 'Ingresar'}
@@ -84,9 +91,10 @@ function JudgeScore({ token, name, onLogout }) {
   const [phase, setPhase] = useState(1)
   const [questions, setQuestions] = useState([])
   const [teams, setTeams] = useState([])
+  const [selectedTeamId, setSelectedTeamId] = useState('')
   const [answers, setAnswers] = useState({}) // { teamId: { questionId: points } }
-  const [saving, setSaving] = useState(null)
-  const [savedId, setSavedId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(false)
 
@@ -97,6 +105,12 @@ function JudgeScore({ token, name, onLogout }) {
     socket.on('phase:update', load)
     return () => socket.off('phase:update', load)
   }, [])
+
+  useEffect(() => {
+    if (selectedTeamId && !answers[selectedTeamId]) {
+      setAnswers(prev => ({ ...prev, [selectedTeamId]: {} }))
+    }
+  }, [selectedTeamId])
 
   async function load() {
     try {
@@ -117,35 +131,50 @@ function JudgeScore({ token, name, onLogout }) {
     }
   }
 
-  function setPoints(teamId, questionId, value, max) {
+  function setPoints(questionId, value, max) {
     let v = value === '' ? '' : Number(value)
     if (v !== '' && !Number.isNaN(v)) v = Math.max(0, Math.min(max, v))
-    setAnswers(prev => ({ ...prev, [teamId]: { ...prev[teamId], [questionId]: v } }))
+    setAnswers(prev => ({ ...prev, [selectedTeamId]: { ...prev[selectedTeamId], [questionId]: v } }))
   }
 
-  function setText(teamId, questionId, value) {
-    setAnswers(prev => ({ ...prev, [teamId]: { ...prev[teamId], [questionId]: value } }))
+  function setText(questionId, value) {
+    setAnswers(prev => ({ ...prev, [selectedTeamId]: { ...prev[selectedTeamId], [questionId]: value } }))
   }
 
-  function teamTotal(teamId) {
-    return questions.reduce((s, q) => q.type === 'text' ? s : s + (Number(answers[teamId]?.[q.id]) || 0), 0)
+  function teamTotal() {
+    return questions.reduce((s, q) => q.type === 'text' ? s : s + (Number(answers[selectedTeamId]?.[q.id]) || 0), 0)
   }
 
-  async function save(teamId) {
-    setSaving(teamId)
+  function hasAllRequired() {
+    return questions.every(q => {
+      if (q.type === 'text') return true
+      const val = answers[selectedTeamId]?.[q.id]
+      return val !== undefined && val !== '' && Number(val) >= 0
+    })
+  }
+
+  async function save() {
+    if (!hasAllRequired()) return
+    setSaving(true)
     try {
       const payload = questions.map(q => q.type === 'text'
-        ? { questionId: q.id, text: String(answers[teamId]?.[q.id] ?? '') }
-        : { questionId: q.id, points: Number(answers[teamId]?.[q.id]) || 0 })
-      await axios.post(`${API}/api/judges/score`, { teamId, answers: payload }, headers)
-      setTeams(prev => prev.map(t => t.id === teamId ? { ...t, myScore: { total: teamTotal(teamId) } } : t))
-      setSavedId(teamId)
-      setTimeout(() => setSavedId(null), 2500)
+        ? { questionId: q.id, text: String(answers[selectedTeamId]?.[q.id] ?? '') }
+        : { questionId: q.id, points: Number(answers[selectedTeamId]?.[q.id]) || 0 })
+      await axios.post(`${API}/api/judges/score`, { teamId: selectedTeamId, answers: payload }, headers)
+      setTeams(prev => prev.map(t => t.id === selectedTeamId ? { ...t, myScore: { total: teamTotal() } } : t))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
     } catch (err) {
       // noop
     } finally {
-      setSaving(null)
+      setSaving(false)
     }
+  }
+
+  function selectTeam(e) {
+    const id = e.target.value
+    setSelectedTeamId(id)
+    setSaved(false)
   }
 
   if (authError) {
@@ -167,6 +196,9 @@ function JudgeScore({ token, name, onLogout }) {
   }
 
   const calificados = teams.filter(t => t.myScore).length
+  const selectedTeam = teams.find(t => t.id === selectedTeamId)
+  const total = teamTotal()
+  const eje = selectedTeam ? ejeInfo(selectedTeam.eje) : { num: 0, label: '' }
 
   return (
     <div>
@@ -188,81 +220,99 @@ function JudgeScore({ token, name, onLogout }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {teams.map(team => {
-          const eje = ejeInfo(team.eje)
-          const total = teamTotal(team.id)
-          return (
-            <div key={team.id} className={`bg-white rounded-2xl shadow-sm p-5 ${team.myScore ? 'ring-1 ring-espe-200' : ''}`}>
-              <div className="flex items-center gap-3 mb-4">
-                {team.logo
-                  ? <img src={team.logo} alt="" className="h-12 w-12 rounded-full object-contain bg-gray-50 ring-1 ring-gray-100" />
-                  : <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-400">{team.name.charAt(0)}</div>}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold truncate">{team.name}</h3>
-                  {eje.num > 0 && <span className="text-[11px] text-gray-400">{eje.label}</span>}
-                </div>
-                {team.myScore && <span className="inline-flex items-center gap-1 text-xs font-semibold text-espe-700"><Check className="w-4 h-4" /> {team.myScore.total}/20</span>}
-              </div>
+      {/* Selector de equipo */}
+      <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar equipo a calificar</label>
+        <select
+          value={selectedTeamId}
+          onChange={selectTeam}
+          className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-espe-500 appearance-none bg-white"
+        >
+          <option value="">-- Selecciona un equipo --</option>
+          {teams.map(t => (
+            <option key={t.id} value={t.id}>
+              {t.name} {t.myScore ? `(✓ ${t.myScore.total}/20)` : '(pendiente)'}
+            </option>
+          ))}
+        </select>
 
-              <div className="space-y-4">
-                {questions.map(q => (
-                  <div key={q.id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-                    <p className="text-sm font-medium text-gray-700 mb-2">{q.text}</p>
-                    {q.type === 'choice' ? (
-                      <div className="flex flex-wrap gap-2">
-                        {q.options.map((o, idx) => {
-                          const selected = answers[team.id]?.[q.id] === o.points
-                          return (
-                            <button
-                              type="button" key={idx}
-                              onClick={() => setPoints(team.id, q.id, o.points, q.maxScore)}
-                              className={`px-3 py-2 rounded-lg text-sm border transition ${
-                                selected ? 'bg-espe-600 text-white border-espe-600' : 'bg-white text-gray-600 border-gray-200 hover:border-espe-300'
-                              }`}
-                            >
-                              {o.label} <span className="opacity-70">({o.points})</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    ) : q.type === 'text' ? (
-                      <textarea
-                        rows="2"
-                        value={answers[team.id]?.[q.id] ?? ''}
-                        onChange={e => setText(team.id, q.id, e.target.value)}
-                        placeholder="Escribe tu observación..."
-                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number" min="0" max={q.maxScore} step="0.5"
-                          value={answers[team.id]?.[q.id] ?? ''}
-                          onChange={e => setPoints(team.id, q.id, e.target.value, q.maxScore)}
-                          className="w-24 border rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-espe-400"
-                        />
-                        <span className="text-xs text-gray-400">/ {q.maxScore} pts</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
-                <span className="text-sm font-semibold">Total: <span className="text-espe-700">{total}</span> / 20</span>
-                <button
-                  onClick={() => save(team.id)}
-                  disabled={saving === team.id || questions.length === 0}
-                  className="bg-espe-600 text-white px-4 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm disabled:opacity-60"
-                >
-                  {saving === team.id ? 'Guardando...' : savedId === team.id ? '¡Guardado!' : team.myScore ? 'Actualizar' : 'Guardar'}
-                </button>
-              </div>
+        {selectedTeamId && teams.length > 0 && (
+          <div className="flex items-center gap-3 mt-3 p-3 bg-espe-50 rounded-xl">
+            {selectedTeam.logo
+              ? <img src={selectedTeam.logo} alt="" className="h-10 w-10 rounded-full object-contain bg-white ring-1 ring-gray-200" />
+              : <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">{selectedTeam.name.charAt(0)}</div>}
+            <div>
+              <p className="font-semibold text-gray-800">{selectedTeam.name}</p>
+              {eje.num > 0 && <span className="text-xs text-gray-500">{eje.label}</span>}
+              {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ {selectedTeam.myScore.total}/20</span>}
             </div>
-          )
-        })}
+          </div>
+        )}
       </div>
+
+      {/* Rúbrica para el equipo seleccionado */}
+      {selectedTeamId && (
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          <div className="space-y-5">
+            {questions.map(q => (
+              <div key={q.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                <p className="text-sm font-medium text-gray-700 mb-2">{q.text}</p>
+                {q.type === 'choice' ? (
+                  <div className="flex flex-wrap gap-2">
+                    {q.options.map((o, idx) => {
+                      const selected = answers[selectedTeamId]?.[q.id] === o.points
+                      return (
+                        <button
+                          type="button" key={idx}
+                          onClick={() => setPoints(q.id, o.points, q.maxScore)}
+                          className={`px-4 py-2.5 rounded-lg text-sm border transition ${
+                            selected ? 'bg-espe-600 text-white border-espe-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-espe-300'
+                          }`}
+                        >
+                          {o.label} <span className="opacity-70">({o.points})</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : q.type === 'text' ? (
+                  <textarea
+                    rows="2"
+                    value={answers[selectedTeamId]?.[q.id] ?? ''}
+                    onChange={e => setText(q.id, e.target.value)}
+                    placeholder="Escribe tu observación..."
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min="0" max={q.maxScore} step="0.5"
+                      value={answers[selectedTeamId]?.[q.id] ?? ''}
+                      onChange={e => setPoints(q.id, e.target.value, q.maxScore)}
+                      className="w-24 border rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-2 focus:ring-espe-400"
+                    />
+                    <span className="text-xs text-gray-400">/ {q.maxScore} pts</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+            <span className="text-base font-semibold">Total: <span className="text-espe-700 text-lg">{total}</span> / 20</span>
+            <button
+              onClick={save}
+              disabled={saving || questions.length === 0 || !hasAllRequired()}
+              className="bg-espe-600 text-white px-6 py-2.5 rounded-xl hover:bg-espe-700 transition-colors font-semibold text-sm disabled:opacity-60"
+            >
+              {saving ? 'Guardando...' : saved ? '¡Guardado!' : selectedTeam?.myScore ? 'Actualizar calificación' : 'Guardar calificación'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!selectedTeamId && teams.length > 0 && questions.length > 0 && (
+        <p className="text-center text-gray-400 py-10">Selecciona un equipo para comenzar a calificar.</p>
+      )}
 
       {teams.length === 0 && questions.length > 0 && (
         <p className="text-center text-gray-400 py-10">No hay equipos activos en esta fase.</p>
