@@ -3,7 +3,7 @@ import axios from 'axios'
 import LogoBar from '../components/LogoBar'
 import socket from '../socket'
 import { ejeInfo } from '../utils/eje'
-import { LogOut, Check, ClipboardList, Eye, EyeOff } from 'lucide-react'
+import { LogOut, Check, ClipboardList, Eye, EyeOff, Menu, X } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -88,6 +88,7 @@ function JudgeLogin({ onLogin }) {
 }
 
 function JudgeScore({ token, name, onLogout }) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [phase, setPhase] = useState(1)
   const [questions, setQuestions] = useState([])
   const [teams, setTeams] = useState([])
@@ -202,16 +203,27 @@ function JudgeScore({ token, name, onLogout }) {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div>
+      {menuOpen && <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />}
+      <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold text-gray-800">Calificación de proyectos</h1>
           <p className="text-sm text-gray-500">
             Jurado: <span className="font-semibold">{name}</span> · Fase {phase} · {calificados}/{teams.length} calificados
           </p>
         </div>
-        <button onClick={onLogout} className="self-start inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-red-600">
-          <LogOut className="w-4 h-4" /> Salir
-        </button>
+        <div className="relative flex-shrink-0">
+          <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+              <div className="px-4 py-2 text-xs text-gray-400 border-b border-gray-100">Conectado como <span className="font-semibold text-gray-600">{name}</span></div>
+              <button onClick={() => { onLogout(); setMenuOpen(false) }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium">
+                <LogOut className="w-4 h-4" /> Cerrar sesión
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {questions.length === 0 && (
