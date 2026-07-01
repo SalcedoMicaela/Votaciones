@@ -265,11 +265,13 @@ function JudgeScore({ token, name, onLogout }) {
                         <button
                           type="button" key={idx}
                           onClick={() => setPoints(q.id, o.points, q.maxScore)}
-                          className={`px-4 py-2.5 rounded-lg text-sm border transition ${
-                            selected ? 'bg-espe-600 text-white border-espe-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-espe-300'
+                          className={`px-5 py-3 rounded-xl text-sm font-medium border-2 transition-all ${
+                            selected
+                              ? 'bg-espe-600 text-white border-espe-600 shadow-md scale-105'
+                              : 'bg-white text-gray-600 border-gray-200 hover:border-espe-300 hover:shadow-sm'
                           }`}
                         >
-                          {o.label} <span className="opacity-70">({o.points})</span>
+                          {o.label}
                         </button>
                       )
                     })}
