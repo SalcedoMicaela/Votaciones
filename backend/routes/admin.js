@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { hashPassword, verifyPassword } = require('../auth')
-const { getCurrentPhase, setCurrentPhase, computeRanking } = require('../phase')
+const { getCurrentPhase, setCurrentPhase, computeRanking, getWeights, setWeights } = require('../phase')
 
 // Valida una contraseña contra la guardada (hasheada) en la BD.
 async function isValidAdminPassword(password) {
@@ -69,6 +69,7 @@ function mapTeam(doc) {
     photo: doc.photo || '',
     whatsapp: doc.whatsapp || '',
     members: doc.members || [],
+    phaseReached: doc.phaseReached || 1,
   }
 }
 
@@ -211,16 +212,33 @@ router.get('/status', async (req, res) => {
   }
 })
 
-// Reinicia la votación: elimina todos los votos registrados
-router.post('/reset-votes', adminAuth, async (req, res) => {
+// Reinicia votación y calificaciones: elimina todos los votos y puntajes de jurados
+router.post('/reset-all', adminAuth, async (req, res) => {
   try {
     const db = getDb()
-    const result = await db.collection('votes').deleteMany({})
+    const votesDel = await db.collection('votes').deleteMany({})
+    const scoresDel = await db.collection('scores').deleteMany({})
     req.app.get('io').emit('vote:update', { results: [], total: 0 })
-    res.json({ success: true, deletedCount: result.deletedCount })
+    res.json({ success: true, deletedVotes: votesDel.deletedCount, deletedScores: scoresDel.deletedCount })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
+})
+
+// Obtener ponderación actual
+router.get('/weights', async (req, res) => {
+  try {
+    const w = await getWeights(getDb())
+    res.json(w)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+// Guardar ponderación (judgeMax + voteMax = 20)
+router.post('/weights', adminAuth, async (req, res) => {
+  try {
+    await setWeights(getDb(), Number(req.body.judgeMax), Number(req.body.voteMax))
+    res.json({ ok: true })
+  } catch (err) { res.status(400).json({ error: err.message }) }
 })
 
 // ===================== RÚBRICA (preguntas) =====================

@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [showAdvanceConfirm, setShowAdvanceConfirm] = useState(false)
   const [showJudgePw, setShowJudgePw] = useState(false)
   const [judgePasswords, setJudgePasswords] = useState({})
+  const [weights, setWeights] = useState({ judgeMax: 18, voteMax: 2 })
+  const [weightForm, setWeightForm] = useState({ judgeMax: 18, voteMax: 2 })
 
   useEffect(() => {
     if (!authenticated) return
@@ -70,6 +72,7 @@ export default function AdminPage() {
     loadJudges()
     loadQuestions()
     loadPhaseAndRanking()
+    loadWeights()
     const onVote = d => { setResults(d); loadRanking() }
     const onToggle = a => setVotingActive(a)
     const onScore = () => loadRanking()
@@ -231,14 +234,15 @@ export default function AdminPage() {
     } catch (err) { console.error(err) }
   }
 
-  async function resetVotes() {
+  async function resetAll() {
     try {
-      await axios.post(`${API}/api/admin/reset-votes`, {}, authHeaders())
+      await axios.post(`${API}/api/admin/reset-all`, {}, authHeaders())
       setShowResetConfirm(false)
       loadResults()
-      showToast('Votos eliminados correctamente')
+      loadPhaseAndRanking()
+      showToast('Votos y calificaciones eliminados correctamente')
     } catch (err) {
-      showToast(err.response?.data?.error || 'Error al reiniciar votación')
+      showToast(err.response?.data?.error || 'Error al reiniciar')
     }
   }
 
@@ -343,6 +347,24 @@ export default function AdminPage() {
     if (!confirm('¿Eliminar esta pregunta?')) return
     try { await axios.delete(`${API}/api/admin/questions/${id}`, authHeaders()); loadQuestions() } catch (e) {}
   }
+  async function loadWeights() {
+    try {
+      const res = await axios.get(`${API}/api/admin/weights`)
+      setWeights(res.data)
+      setWeightForm({ judgeMax: res.data.judgeMax, voteMax: res.data.voteMax })
+    } catch (e) {}
+  }
+  async function saveWeights(e) {
+    e.preventDefault()
+    const jm = Number(weightForm.judgeMax), vm = Number(weightForm.voteMax)
+    if (jm + vm !== 20) return showToast('La suma debe ser 20')
+    try {
+      await axios.post(`${API}/api/admin/weights`, weightForm, authHeaders())
+      setWeights({ judgeMax: jm, voteMax: vm })
+      showToast('Ponderación actualizada')
+    } catch (err) { showToast(err.response?.data?.error || 'Error al guardar') }
+  }
+
   async function advancePhase() {
     try {
       const res = await axios.post(`${API}/api/admin/advance`, { count: Number(advanceCount) }, authHeaders())
@@ -583,14 +605,14 @@ export default function AdminPage() {
                     Zona de peligro
                   </h2>
                   <p className="text-sm text-gray-500 mb-4">
-                    Al reiniciar la votación se eliminarán <strong>todos los {votos} votos</strong> registrados. Esta acción no se puede deshacer.
+                    Al reiniciar se eliminarán <strong>todos los {votos} votos</strong> y <strong>todas las calificaciones</strong> de los jurados. Esta acción no se puede deshacer.
                   </p>
                   <button
                     onClick={() => setShowResetConfirm(true)}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    Reiniciar votación
+                    Reiniciar votación y calificaciones
                   </button>
                 </div>
               )}
@@ -610,9 +632,9 @@ export default function AdminPage() {
                 <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-red-100 flex items-center justify-center">
                   <AlertTriangle className="w-8 h-8 text-red-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">Reiniciar votación</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">Reiniciar todo</h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  ¿Estás seguro? Se eliminarán <strong>todos los {votos} votos</strong> de forma permanente. No podrás recuperarlos.
+                  ¿Estás seguro? Se eliminarán <strong>todos los {votos} votos</strong> y <strong>todas las calificaciones</strong> de forma permanente.
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -622,7 +644,7 @@ export default function AdminPage() {
                     Cancelar
                   </button>
                   <button
-                    onClick={resetVotes}
+                    onClick={resetAll}
                     className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-red-600 hover:bg-red-700 transition"
                   >
                     Sí, reiniciar
@@ -775,6 +797,30 @@ export default function AdminPage() {
           {section === 'config' && (
             <div className="space-y-6 max-w-lg">
               <h1 className="text-2xl font-bold text-gray-800">Configuración</h1>
+
+              <div className="bg-white p-6 rounded-2xl shadow-sm">
+                <h2 className="text-lg font-semibold mb-1">Ponderación (total 20)</h2>
+                <p className="text-xs text-gray-400 mb-4">Define cuánto vale la calificación de los jurados y cuánto los votos del público.</p>
+                <form onSubmit={saveWeights} className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium mb-1">Jurado (máx pts)</label>
+                      <input type="number" min="0" max="20" value={weightForm.judgeMax}
+                        onChange={e => setWeightForm({ ...weightForm, judgeMax: e.target.value, voteMax: 20 - (Number(e.target.value) || 0) })}
+                        className={inputClass} />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium mb-1">Votos (máx pts)</label>
+                      <input type="number" min="0" max="20" value={weightForm.voteMax}
+                        onChange={e => setWeightForm({ ...weightForm, voteMax: e.target.value, judgeMax: 20 - (Number(e.target.value) || 0) })}
+                        className={inputClass} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">Actual: Jurado <strong>{weights.judgeMax}</strong> / Votos <strong>{weights.voteMax}</strong></p>
+                  <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">Guardar ponderación</button>
+                </form>
+              </div>
+
               <div className="bg-white p-6 rounded-2xl shadow-sm">
                 <h2 className="text-lg font-semibold mb-1">Contraseña de administrador</h2>
                 <p className="text-xs text-gray-400 mb-4">Se guarda cifrada en la base de datos.</p>
@@ -825,11 +871,11 @@ export default function AdminPage() {
                     <tr>
                       <th className="px-3 py-2 text-left">#</th>
                       <th className="px-3 py-2 text-left">Equipo</th>
-                      <th className="px-3 py-2 text-right">Nota /20</th>
+                      <th className="px-3 py-2 text-right">Nota /{ranking[0]?.rubricMax || '—'}</th>
                       <th className="px-3 py-2 text-right">Jur.</th>
                       <th className="px-3 py-2 text-right">Votos</th>
-                      <th className="px-3 py-2 text-right">Pts nota</th>
-                      <th className="px-3 py-2 text-right">Pts votos</th>
+                      <th className="px-3 py-2 text-right">Pts /{ranking[0]?.judgeMax || weights.judgeMax}</th>
+                      <th className="px-3 py-2 text-right">Pts /{ranking[0]?.voteMax || weights.voteMax}</th>
                       <th className="px-3 py-2 text-right">Final /20</th>
                     </tr>
                   </thead>
