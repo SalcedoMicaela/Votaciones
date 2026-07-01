@@ -35,6 +35,7 @@ export default function AdminPage() {
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [showQR, setShowQR] = useState(false)
+  const [showJudgeQR, setShowJudgeQR] = useState(false)
   const [photoPreview, setPhotoPreview] = useState('')
   const [logoPreview, setLogoPreview] = useState('')
   const [linkOpenId, setLinkOpenId] = useState(null)
@@ -687,6 +688,7 @@ export default function AdminPage() {
                   <button onClick={() => setShowQR(!showQR)} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-espe-50 text-espe-700 hover:bg-espe-100 transition-colors">
                     {showQR ? 'Ocultar QR general' : 'Mostrar QR general'}
                   </button>
+                  <button onClick={() => printAll('general')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR general</button>
                   <button onClick={() => printAll('vote')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR votación</button>
                   <button onClick={() => printAll('upload')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR subida</button>
                 </div>
@@ -695,6 +697,34 @@ export default function AdminPage() {
                     <div id="general-qr" className="bg-white p-3 rounded-xl shadow-sm"><QRCode value={FRONTEND_URL} size={180} /></div>
                     <p className="mt-3 text-xs text-gray-500 text-center max-w-xs">Escanea para ir a la página principal de votación</p>
                     <button onClick={() => downloadQr('general-qr', 'qr_votacion_general.png')} className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors">
+                      Descargar QR (PNG)
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* QR ACCESO JURADO */}
+              <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                    <UserCog className="w-5 h-5 text-purple-700" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-semibold text-gray-800">QR acceso jurado</h2>
+                    <p className="text-xs sm:text-sm text-gray-500">Lleva a la página de inicio de sesión para que los jurados califiquen.</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:gap-4 mb-3">
+                  <button onClick={() => setShowJudgeQR(!showJudgeQR)} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
+                    {showJudgeQR ? 'Ocultar QR jurado' : 'Mostrar QR jurado'}
+                  </button>
+                  <button onClick={() => printAll('judge')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR jurado</button>
+                </div>
+                {showJudgeQR && (
+                  <div className="mt-4 flex flex-col items-center p-5 sm:p-6 bg-gradient-to-br from-purple-50 to-white rounded-xl border border-purple-100">
+                    <div id="judge-qr" className="bg-white p-3 rounded-xl shadow-sm"><QRCode value={`${FRONTEND_URL}/jurado`} size={180} /></div>
+                    <p className="mt-3 text-xs text-gray-500 text-center max-w-xs">Escanea para ir al inicio de sesión de jurados</p>
+                    <button onClick={() => downloadQr('judge-qr', 'qr_acceso_jurado.png')} className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors">
                       Descargar QR (PNG)
                     </button>
                   </div>
@@ -1073,28 +1103,54 @@ export default function AdminPage() {
 
       {/* Hoja imprimible (solo al imprimir) */}
       <div className="hidden print:block">
-        <h2 className="text-center text-2xl font-bold mb-1">
-          {printMode === 'vote' ? 'QR de votación por equipo' : 'QR de subida de imágenes'}
-        </h2>
-        <p className="text-center text-sm text-gray-500 mb-6">
-          {printMode === 'vote'
-            ? 'Cada persona escanea el QR de un equipo para votar directo por él'
-            : 'Cada equipo escanea su QR para subir su logo y foto'}
-        </p>
-        <div className="grid grid-cols-3 gap-6">
-          {teams.map(team => (
-            <div key={team.id} className="text-center border border-gray-300 rounded-lg p-3 break-inside-avoid">
-              <p className="font-semibold text-sm mb-2 truncate">{team.name}</p>
-              {printMode === 'vote' ? (
-                <QRCode value={voteUrl(team.id)} size={150} className="mx-auto" />
-              ) : links[team.id]?.token ? (
-                <QRCode value={uploadUrl(team.id)} size={150} className="mx-auto" />
-              ) : (
-                <p className="text-xs text-gray-400">sin link</p>
-              )}
+        {printMode === 'judge' ? (
+          <>
+            <h2 className="text-center text-2xl font-bold mb-1">QR acceso jurados</h2>
+            <p className="text-center text-sm text-gray-500 mb-6">Cada jurado escanea para acceder al panel de calificación</p>
+            <div className="flex justify-center">
+              <div className="text-center border border-gray-300 rounded-lg p-4">
+                <p className="font-semibold text-sm mb-2">Acceso Jurado</p>
+                <QRCode value={`${FRONTEND_URL}/jurado`} size={200} className="mx-auto" />
+              </div>
             </div>
-          ))}
-        </div>
+          </>
+        ) : printMode === 'general' ? (
+          <>
+            <h2 className="text-center text-2xl font-bold mb-1">QR votación general</h2>
+            <p className="text-center text-sm text-gray-500 mb-6">Escanea para ir a la página principal de votación</p>
+            <div className="flex justify-center">
+              <div className="text-center border border-gray-300 rounded-lg p-4">
+                <p className="font-semibold text-sm mb-2">Votación General</p>
+                <QRCode value={FRONTEND_URL} size={200} className="mx-auto" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="text-center text-2xl font-bold mb-1">
+              {printMode === 'vote' ? 'QR de votación por equipo' : 'QR de subida de imágenes'}
+            </h2>
+            <p className="text-center text-sm text-gray-500 mb-6">
+              {printMode === 'vote'
+                ? 'Cada persona escanea el QR de un equipo para votar directo por él'
+                : 'Cada equipo escanea su QR para subir su logo y foto'}
+            </p>
+            <div className="grid grid-cols-3 gap-6">
+              {teams.map(team => (
+                <div key={team.id} className="text-center border border-gray-300 rounded-lg p-3 break-inside-avoid">
+                  <p className="font-semibold text-sm mb-2 truncate">{team.name}</p>
+                  {printMode === 'vote' ? (
+                    <QRCode value={voteUrl(team.id)} size={150} className="mx-auto" />
+                  ) : links[team.id]?.token ? (
+                    <QRCode value={uploadUrl(team.id)} size={150} className="mx-auto" />
+                  ) : (
+                    <p className="text-xs text-gray-400">sin link</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </>
   )
