@@ -802,29 +802,6 @@ export default function AdminPage() {
               <h1 className="text-2xl font-bold text-gray-800">Configuración</h1>
 
               <div className="bg-white p-6 rounded-2xl shadow-sm">
-                <h2 className="text-lg font-semibold mb-1">Ponderación (total 20)</h2>
-                <p className="text-xs text-gray-400 mb-4">Define cuánto vale la calificación de los jurados y cuánto los votos del público.</p>
-                <form onSubmit={saveWeights} className="space-y-3">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium mb-1">Jurado (máx pts)</label>
-                      <input type="number" min="0" max="20" value={weightForm.judgeMax}
-                        onChange={e => setWeightForm({ ...weightForm, judgeMax: e.target.value, voteMax: 20 - (Number(e.target.value) || 0) })}
-                        className={inputClass} />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium mb-1">Votos (máx pts)</label>
-                      <input type="number" min="0" max="20" value={weightForm.voteMax}
-                        onChange={e => setWeightForm({ ...weightForm, voteMax: e.target.value, judgeMax: 20 - (Number(e.target.value) || 0) })}
-                        className={inputClass} />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400">Actual: Jurado <strong>{weights.judgeMax}</strong> / Votos <strong>{weights.voteMax}</strong></p>
-                  <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">Guardar ponderación</button>
-                </form>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-sm">
                 <h2 className="text-lg font-semibold mb-1">Contraseña de administrador</h2>
                 <p className="text-xs text-gray-400 mb-4">Se guarda cifrada en la base de datos.</p>
                 <form onSubmit={changePassword} className="space-y-3">
@@ -944,8 +921,25 @@ export default function AdminPage() {
               {questions.length > 0 && questionsTotal !== 20 && (
                 <p className="text-sm text-yellow-600">La suma de los puntajes máximos debería dar 20 (actualmente {questionsTotal}).</p>
               )}
-              <div className="bg-espe-50 border border-espe-200 rounded-xl p-3 text-sm text-espe-800">
-                La nota del jurado se escala automáticamente. Ve a <button onClick={() => setSection('config')} className="font-semibold underline hover:text-espe-900">Configuración → Ponderación</button> para definir cuánto vale la calificación de jurados y cuánto los votos del público (ej. jurado 18/20, votos 2/20).
+
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-espe-100">
+                <h2 className="font-semibold text-sm mb-2">Ponderación (total 20)</h2>
+                <form onSubmit={saveWeights} className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Jurado (máx pts)</label>
+                    <input type="number" min="0" max="20" value={weightForm.judgeMax}
+                      onChange={e => setWeightForm({ ...weightForm, judgeMax: e.target.value, voteMax: 20 - (Number(e.target.value) || 0) })}
+                      className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1">Votos (máx pts)</label>
+                    <input type="number" min="0" max="20" value={weightForm.voteMax}
+                      onChange={e => setWeightForm({ ...weightForm, voteMax: e.target.value, judgeMax: 20 - (Number(e.target.value) || 0) })}
+                      className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500" />
+                  </div>
+                  <button type="submit" className="bg-espe-600 text-white px-4 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">Guardar</button>
+                  <span className="text-xs text-gray-400">Actual: Jurado <strong>{weights.judgeMax}</strong> / Votos <strong>{weights.voteMax}</strong></span>
+                </form>
               </div>
 
               {/* Constructor de pregunta */}
