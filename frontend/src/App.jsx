@@ -16,7 +16,7 @@ export default function App() {
   const year = new Date().getFullYear()
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
+      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40 print:hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <NavLink to="/" className="flex items-center gap-3 min-w-0">
             <Logo variant="espe" className="h-9" />
@@ -26,7 +26,6 @@ export default function App() {
           <nav className="flex items-center gap-1 flex-shrink-0">
             <NavLink to="/" end className={navClass}>Votar</NavLink>
             <NavLink to="/results" className={navClass}>Resultados</NavLink>
-            <NavLink to="/jurado" className={navClass}>Jurado</NavLink>
             <NavLink to="/admin" className={navClass}>Admin</NavLink>
           </nav>
         </div>
@@ -43,7 +42,7 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="border-t border-gray-100 bg-white mt-8">
+      <footer className="border-t border-gray-100 bg-white mt-8 print:hidden">
         <div className="max-w-6xl mx-auto px-4 py-6">
           <div className="flex items-center justify-center gap-6 sm:gap-10 mb-3">
             <img src="/espe-logo.png" alt="ESPE" className="h-7 sm:h-8 w-auto object-contain" />
