@@ -212,13 +212,20 @@ router.get('/status', async (req, res) => {
   }
 })
 
-// Reinicia votación y calificaciones: elimina todos los votos y puntajes de jurados
+// Reinicia votación, calificaciones y fases: elimina votos, scores, reinicia equipos a fase 1
 router.post('/reset-all', adminAuth, async (req, res) => {
   try {
     const db = getDb()
     const votesDel = await db.collection('votes').deleteMany({})
     const scoresDel = await db.collection('scores').deleteMany({})
+    await db.collection('teams').updateMany({}, { $set: { phaseReached: 1 } })
+    await db.collection('settings').updateOne(
+      { key: 'current_phase' }, { $set: { value: '1' } }, { upsert: true })
+    await db.collection('settings').updateOne(
+      { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
     req.app.get('io').emit('vote:update', { results: [], total: 0 })
+    req.app.get('io').emit('phase:update', { phase: 1 })
+    req.app.get('io').emit('voting:toggle', false)
     res.json({ success: true, deletedVotes: votesDel.deletedCount, deletedScores: scoresDel.deletedCount })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -323,7 +330,7 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
 
 // ===================== JURADOS =====================
 function mapJudge(j) {
-  return { id: j._id.toString(), name: j.name, username: j.username }
+  return { id: j._id.toString(), name: j.name, username: j.username, rawPassword: j.rawPassword || null }
 }
 function normUser(u) {
   return (u || '').trim().toLowerCase()
@@ -348,14 +355,12 @@ router.post('/judges', adminAuth, async (req, res) => {
         name,
         username,
         passwordHash: hashPassword(password),
+        rawPassword: password,
         token: makeToken(),
         createdAt: new Date(),
       }
       const r = await getDb().collection('judges').insertOne(doc)
-      const judge = { ...doc, _id: r.insertedId }
-      const judgeResponse = mapJudge(judge)
-      judgeResponse.rawPassword = password
-      res.json(judgeResponse)
+      res.json(mapJudge({ ...doc, _id: r.insertedId }))
   } catch (err) {
     if (err.code === 11000) return res.status(409).json({ error: 'Ese usuario ya existe' })
     res.status(500).json({ error: err.message })
@@ -368,7 +373,7 @@ router.put('/judges/:id', adminAuth, async (req, res) => {
   const set = {}
   if (req.body.name !== undefined) set.name = String(req.body.name).trim()
   if (req.body.username !== undefined) set.username = normUser(req.body.username)
-  if (req.body.password) set.passwordHash = hashPassword(req.body.password)
+  if (req.body.password) { set.passwordHash = hashPassword(req.body.password); set.rawPassword = req.body.password }
   try {
     await getDb().collection('judges').updateOne({ _id: new ObjectId(id) }, { $set: set })
     res.json({ ok: true })

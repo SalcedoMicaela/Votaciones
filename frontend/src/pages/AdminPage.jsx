@@ -262,7 +262,13 @@ export default function AdminPage() {
 
   // --- Fases / jurados / rúbrica ---
   async function loadJudges() {
-    try { setJudges((await axios.get(`${API}/api/admin/judges`, authHeaders())).data) } catch (e) {}
+    try {
+      const res = await axios.get(`${API}/api/admin/judges`, authHeaders())
+      setJudges(res.data)
+      const pwMap = {}
+      res.data.forEach(j => { if (j.rawPassword) pwMap[j.id] = j.rawPassword })
+      setJudgePasswords(prev => ({ ...prev, ...pwMap }))
+    } catch (e) {}
   }
   async function loadQuestions() {
     try { setQuestions((await axios.get(`${API}/api/admin/questions`)).data) } catch (e) {}
@@ -286,8 +292,7 @@ export default function AdminPage() {
   async function createJudge(e) {
     e.preventDefault()
     try {
-      const res = await axios.post(`${API}/api/admin/judges`, judgeForm, authHeaders())
-      setJudgePasswords(prev => ({ ...prev, [res.data.id]: res.data.rawPassword }))
+      await axios.post(`${API}/api/admin/judges`, judgeForm, authHeaders())
       setJudgeForm({ name: '', username: '', password: '' })
       loadJudges()
       showToast('Jurado creado')
@@ -598,24 +603,22 @@ export default function AdminPage() {
                 <p className="mt-4 text-sm text-gray-500">Votos registrados hasta ahora: <span className="font-bold text-espe-700">{votos}</span></p>
               </div>
 
-              {votos > 0 && (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    Zona de peligro
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Al reiniciar se eliminarán <strong>todos los {votos} votos</strong> y <strong>todas las calificaciones</strong> de los jurados. Esta acción no se puede deshacer.
-                  </p>
-                  <button
-                    onClick={() => setShowResetConfirm(true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Reiniciar votación y calificaciones
-                  </button>
-                </div>
-              )}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100">
+                <h2 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
+                  Zona de peligro
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Al reiniciar se eliminarán <strong>todos los {votos > 0 ? `${votos} votos` : 'votos'}</strong> y <strong>todas las calificaciones</strong> de los jurados. También se reiniciarán las fases (todos los equipos vuelven a fase 1).
+                </p>
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reiniciar todo (votos, calificaciones y fases)
+                </button>
+              </div>
             </div>
           )}
 
@@ -634,7 +637,7 @@ export default function AdminPage() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">Reiniciar todo</h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  ¿Estás seguro? Se eliminarán <strong>todos los {votos} votos</strong> y <strong>todas las calificaciones</strong> de forma permanente.
+                  ¿Estás seguro? Se eliminarán votos, calificaciones y se reiniciarán las fases. <strong>Todos los equipos volverán a fase 1</strong>. Los equipos, jurados y preguntas se mantienen.
                 </p>
                 <div className="flex gap-3">
                   <button
