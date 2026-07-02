@@ -81,6 +81,9 @@ export default function ResultsPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-center mb-1">Resultados en Vivo</h1>
+      <p className="text-sm text-gray-500 text-center max-w-md mx-auto mb-1">
+        Ranking de los votos que tienen los equipos.
+      </p>
       <p className="text-center text-gray-500 mb-8 sm:mb-10">
         Total de votos: <span className="font-bold text-espe-700">{total}</span>
       </p>

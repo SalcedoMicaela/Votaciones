@@ -185,6 +185,7 @@ router.get('/ranking/public', async (req, res) => {
         name: t.name,
         logo: t.logo || '',
         photo: t.photo || '',
+        description: t.description || '',
         final: round2(puntosNota + puntosVotos),
       }
     })

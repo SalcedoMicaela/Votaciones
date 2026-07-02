@@ -6,6 +6,11 @@ import { Crown, Medal, Award } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
+function parseDocente(description) {
+  const m = (description || '').match(/^Docente:\s*(.+)/i)
+  return m ? m[1].trim() : ''
+}
+
 export default function LeaderboardPage() {
   const [ranking, setRanking] = useState([])
   const [phase, setPhase] = useState(1)
@@ -99,6 +104,12 @@ export default function LeaderboardPage() {
           {/* Inferior: nombre + puntaje */}
           <div>
             <h3 className={`font-bold text-white drop-shadow-lg leading-tight ${isBig ? 'text-xl sm:text-3xl' : 'text-sm sm:text-base'}`}>{team.name}</h3>
+            {(() => {
+              const d = parseDocente(team.description)
+              return d ? (
+                <p className={`text-white/80 drop-shadow leading-tight ${isBig ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'} mt-0.5`}>{d}</p>
+              ) : null
+            })()}
             <div className={`mt-1 inline-flex items-center gap-1 bg-white/20 backdrop-blur-md rounded-full ${isBig ? 'px-4 py-1.5' : 'px-2.5 py-0.5'}`}>
               <span className={`font-extrabold text-white drop-shadow ${isBig ? 'text-xl sm:text-2xl' : 'text-sm'}`}>{team.final}</span>
               <span className={`text-white/80 ${isBig ? 'text-xs' : 'text-[10px]'}`}>/20</span>
@@ -114,7 +125,8 @@ export default function LeaderboardPage() {
       <div className="text-center mb-8">
         <LogoBar size="sm" className="mx-auto mb-3" />
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Clasificación</h1>
-        <p className="text-sm text-gray-400 mt-1">Fase actual: {phase}</p>
+        <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">Equipos mejores puntuados por el jurado y estudiantes. Clasificación de los que pasan a la siguiente etapa.</p>
+        <p className="text-xs text-gray-400 mt-1">Fase actual: {phase}</p>
       </div>
 
       {/* #1 - Hero */}
@@ -154,6 +166,10 @@ export default function LeaderboardPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-gray-700 truncate">{team.name}</p>
+                    {(() => {
+                      const d = parseDocente(team.description)
+                      return d ? <p className="text-[11px] text-gray-400 truncate">{d}</p> : null
+                    })()}
                   </div>
                   <span className="text-sm font-bold text-gray-600 bg-gray-50 px-2.5 py-1 rounded-lg">{team.final}</span>
                 </div>
