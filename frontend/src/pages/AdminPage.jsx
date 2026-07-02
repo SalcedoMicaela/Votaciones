@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [logoPreview, setLogoPreview] = useState('')
   const [linkOpenId, setLinkOpenId] = useState(null)
   const [voteLinkOpenId, setVoteLinkOpenId] = useState(null)
+  const [judgeLinkOpenId, setJudgeLinkOpenId] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
   const [toast, setToast] = useState(null)
   const [pwForm, setPwForm] = useState({ nueva: '', confirmar: '' })
@@ -690,6 +691,7 @@ export default function AdminPage() {
                   </button>
                   <button onClick={() => printAll('general')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR general</button>
                   <button onClick={() => printAll('vote')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR votación</button>
+                  <button onClick={() => printAll('judge-team')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">Imprimir QR jurado</button>
                   <button onClick={() => printAll('upload')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR subida</button>
                 </div>
                 {showQR && (
@@ -738,6 +740,7 @@ export default function AdminPage() {
                   const link = links[team.id]
                   const isOpen = linkOpenId === team.id
                   const isVoteOpen = voteLinkOpenId === team.id
+                  const isJudgeOpen = judgeLinkOpenId === team.id
                   return (
                     <div key={team.id} className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm">
                       <div className="flex items-center gap-3 mb-3">
@@ -776,6 +779,44 @@ export default function AdminPage() {
                               <div id={`voteqr-${team.id}`} className="bg-white p-2 rounded-lg shadow-sm"><QRCode value={voteUrl(team.id)} size={150} /></div>
                               <p className="mt-3 text-xs text-gray-500 text-center">Escanea para votar directamente por <span className="font-semibold text-espe-700">{team.name}</span></p>
                               <button onClick={() => downloadQr(`voteqr-${team.id}`, `votar_${safeFilename(team.name)}.png`)} className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors">
+                                Descargar QR (PNG)
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Calificación directa jurado */}
+                      <div className="mt-2 rounded-xl border border-purple-200 overflow-hidden">
+                        <button
+                          onClick={() => setJudgeLinkOpenId(isJudgeOpen ? null : team.id)}
+                          className={`w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+                            isJudgeOpen ? 'bg-purple-700 text-white' : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <UserCog className="w-4 h-4" />
+                            QR calificación directa (jurado)
+                          </span>
+                          <svg
+                            className={`w-4 h-4 transition-transform duration-200 ${isJudgeOpen ? 'rotate-180' : ''}`}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {isJudgeOpen && (
+                          <div className="p-4 bg-white">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <input readOnly value={`${FRONTEND_URL}/jurado/${team.id}`} onFocus={e => e.target.select()} className="flex-1 min-w-0 text-xs border rounded-lg px-3 py-2 bg-gray-50 text-gray-600" />
+                              <button onClick={() => copyText(`${FRONTEND_URL}/jurado/${team.id}`, `judge-${team.id}`)} className="text-xs font-semibold px-4 py-2 rounded-lg bg-purple-700 text-white hover:bg-purple-800 whitespace-nowrap transition-colors">
+                                {copiedId === `judge-${team.id}` ? '¡Copiado!' : 'Copiar'}
+                              </button>
+                            </div>
+                            <div className="mt-4 flex flex-col items-center p-4 bg-gradient-to-br from-purple-50/50 to-white rounded-xl">
+                              <div id={`judgeqr-${team.id}`} className="bg-white p-2 rounded-lg shadow-sm"><QRCode value={`${FRONTEND_URL}/jurado/${team.id}`} size={150} /></div>
+                              <p className="mt-3 text-xs text-gray-500 text-center">El jurado escanea y se loguea para calificar directamente a <span className="font-semibold text-purple-700">{team.name}</span></p>
+                              <button onClick={() => downloadQr(`judgeqr-${team.id}`, `calificar_${safeFilename(team.name)}.png`)} className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg bg-purple-700 text-white hover:bg-purple-800 transition-colors">
                                 Descargar QR (PNG)
                               </button>
                             </div>
@@ -1120,6 +1161,22 @@ export default function AdminPage() {
               <QRCode value={FRONTEND_URL} size={280} className="mx-auto" />
             </div>
             <p className="mt-6 text-sm text-gray-400">{FRONTEND_URL}</p>
+          </div>
+        ) : printMode === 'judge-team' ? (
+          <div className="py-8">
+            <h2 className="text-center text-3xl font-bold mb-2">QR calificación por equipo (jurado)</h2>
+            <p className="text-center text-sm text-gray-500 mb-8">Cada jurado escanea el QR del equipo que debe calificar</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+              {teams.map(team => (
+                <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 break-inside-avoid bg-white shadow-sm">
+                  {(team.logo || team.photo) && (
+                    <img src={team.logo || team.photo} alt={team.name} className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
+                  )}
+                  <p className="font-semibold text-sm mb-3 truncate">{team.name}</p>
+                  <QRCode value={`${FRONTEND_URL}/jurado/${team.id}`} size={140} className="mx-auto" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="py-8">

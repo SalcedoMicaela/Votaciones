@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import LogoBar from '../components/LogoBar'
 import socket from '../socket'
@@ -8,6 +9,7 @@ import { LogOut, Check, ClipboardList, Eye, EyeOff, Menu, X } from 'lucide-react
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function JudgePage() {
+  const { teamId } = useParams()
   const [token, setToken] = useState(() => localStorage.getItem('judgeToken') || '')
   const [name, setName] = useState(() => localStorage.getItem('judgeName') || '')
 
@@ -24,8 +26,8 @@ export default function JudgePage() {
     setName('')
   }
 
-  if (!token) return <JudgeLogin onLogin={onLogin} />
-  return <JudgeScore token={token} name={name} onLogout={logout} />
+  if (!token) return <JudgeLogin onLogin={onLogin} teamId={teamId} />
+  return <JudgeScore token={token} name={name} onLogout={logout} teamId={teamId} />
 }
 
 function JudgeLogin({ onLogin }) {
@@ -87,7 +89,7 @@ function JudgeLogin({ onLogin }) {
   )
 }
 
-function JudgeScore({ token, name, onLogout }) {
+function JudgeScore({ token, name, onLogout, teamId }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [phase, setPhase] = useState(1)
   const [questions, setQuestions] = useState([])
@@ -125,6 +127,10 @@ function JudgeScore({ token, name, onLogout }) {
         if (t.myScore) t.myScore.answers.forEach(a => { init[t.id][a.questionId] = a.text !== undefined ? a.text : a.points })
       })
       setAnswers(init)
+      // Si viene por QR directo, auto-seleccionar ese equipo
+      if (teamId && res.data.teams.some(t => t.id === teamId)) {
+        setSelectedTeamId(teamId)
+      }
     } catch (err) {
       if (err.response?.status === 401) setAuthError(true)
     } finally {
@@ -232,35 +238,53 @@ function JudgeScore({ token, name, onLogout }) {
         </div>
       )}
 
-      {/* Selector de equipo */}
-      <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar equipo a calificar</label>
-        <select
-          value={selectedTeamId}
-          onChange={selectTeam}
-          className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-espe-500 appearance-none bg-white"
-        >
-          <option value="">-- Selecciona un equipo --</option>
-          {teams.map(t => (
-            <option key={t.id} value={t.id}>
-              {t.name} {t.myScore ? `(✓ ${t.myScore.total}/20)` : '(pendiente)'}
-            </option>
-          ))}
-        </select>
+      {/* Selector de equipo (solo si no viene por QR directo) */}
+      {!teamId && (
+        <div className="bg-white rounded-2xl shadow-sm p-5 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar equipo a calificar</label>
+          <select
+            value={selectedTeamId}
+            onChange={selectTeam}
+            className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-espe-500 appearance-none bg-white"
+          >
+            <option value="">-- Selecciona un equipo --</option>
+            {teams.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.name} {t.myScore ? `(✓ ${t.myScore.total}/20)` : '(pendiente)'}
+              </option>
+            ))}
+          </select>
 
-        {selectedTeamId && teams.length > 0 && (
-          <div className="flex items-center gap-3 mt-3 p-3 bg-espe-50 rounded-xl">
+          {selectedTeamId && teams.length > 0 && (
+            <div className="flex items-center gap-3 mt-3 p-3 bg-espe-50 rounded-xl">
+              {selectedTeam.logo
+                ? <img src={selectedTeam.logo} alt="" className="h-10 w-10 rounded-full object-contain bg-white ring-1 ring-gray-200" />
+                : <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">{selectedTeam.name.charAt(0)}</div>}
+              <div>
+                <p className="font-semibold text-gray-800">{selectedTeam.name}</p>
+                {eje.num > 0 && <span className="text-xs text-gray-500">{eje.label}</span>}
+                {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ {selectedTeam.myScore.total}/20</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Banner del equipo cuando viene por QR directo */}
+      {teamId && selectedTeamId && (
+        <div className="bg-white rounded-2xl shadow-sm p-5 mb-6 border border-espe-200">
+          <div className="flex items-center gap-3">
             {selectedTeam.logo
-              ? <img src={selectedTeam.logo} alt="" className="h-10 w-10 rounded-full object-contain bg-white ring-1 ring-gray-200" />
-              : <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">{selectedTeam.name.charAt(0)}</div>}
+              ? <img src={selectedTeam.logo} alt="" className="h-14 w-14 rounded-full object-contain bg-white ring-2 ring-espe-200" />
+              : <div className="h-14 w-14 rounded-full bg-espe-100 flex items-center justify-center font-bold text-espe-600 text-lg">{selectedTeam.name.charAt(0)}</div>}
             <div>
-              <p className="font-semibold text-gray-800">{selectedTeam.name}</p>
+              <p className="font-semibold text-gray-800 text-lg">{selectedTeam.name}</p>
               {eje.num > 0 && <span className="text-xs text-gray-500">{eje.label}</span>}
-              {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ {selectedTeam.myScore.total}/20</span>}
+              {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ Calificado ({selectedTeam.myScore.total}/20)</span>}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Rúbrica para el equipo seleccionado */}
       {selectedTeamId && (

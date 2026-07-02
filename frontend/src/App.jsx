@@ -39,6 +39,7 @@ export default function App() {
           <Route path="/subir/:token" element={<UploadPage />} />
           <Route path="/votar/:teamId" element={<VoteTeamPage />} />
           <Route path="/jurado" element={<JudgePage />} />
+          <Route path="/jurado/:teamId" element={<JudgePage />} />
         </Routes>
       </main>
 
