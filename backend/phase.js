@@ -100,4 +100,4 @@ async function computeRanking(db, phase) {
   return rows
 }
 
-module.exports = { getCurrentPhase, setCurrentPhase, computeRanking, isActive, getWeights, setWeights }
+module.exports = { getCurrentPhase, setCurrentPhase, computeRanking, isActive, getWeights, setWeights, getRubricMax }
