@@ -200,8 +200,8 @@ export default function VotePage() {
             </span>
           </span>
         </div>
-        <p className="text-sm text-gray-500 max-w-lg mx-auto mt-2">
-          Vota por tu equipo favorito. Cada persona puede votar una sola vez.
+        <p className="text-sm text-gray-500 mt-2">
+          Vota por tu equipo favorito
         </p>
         <p className="text-sm text-gray-400 mt-1">
           {teams.length} proyecto{teams.length !== 1 ? 's' : ''} participando

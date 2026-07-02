@@ -440,6 +440,7 @@ export default function AdminPage() {
 
         {/* CONTENIDO */}
         <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-500 mb-4">Panel de administración</p>
           {/* ===== RESUMEN ===== */}
           {section === 'resumen' && (
             <div className="space-y-6">

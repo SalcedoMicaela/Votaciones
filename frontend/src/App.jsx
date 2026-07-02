@@ -8,16 +8,9 @@ import JudgePage from './pages/JudgePage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import Logo from './components/Logo'
 
-const navItem = [
-  { to: '/', end: true, label: 'Votar', desc: 'Vota por tu equipo favorito' },
-  { to: '/clasificacion', end: false, label: 'Clasificación', desc: 'Equipos mejores puntuados por el jurado y estudiantes' },
-  { to: '/results', end: false, label: 'Resultados', desc: 'Ranking de los votos que tienen los equipos' },
-  { to: '/admin', end: false, label: 'Admin', desc: 'Panel de administración' },
-]
-
 const navClass = ({ isActive }) =>
-  `group px-2.5 py-1.5 rounded-lg text-left transition-colors ${
-    isActive ? 'bg-espe-50 text-espe-700' : 'text-gray-600 hover:bg-gray-50'
+  `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+    isActive ? 'text-espe-700 bg-espe-50' : 'text-gray-500 hover:text-espe-700 hover:bg-gray-50'
   }`
 
 export default function App() {
@@ -25,23 +18,17 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40 print:hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-auto min-h-[4.5rem] py-2 flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <NavLink to="/" className="flex items-center gap-3 min-w-0">
             <Logo variant="espe" className="h-9" />
             <span className="hidden sm:block w-px h-8 bg-gray-200" />
             <span className="hidden sm:block font-bold text-gray-800 truncate">Sistema de Votaciones</span>
           </NavLink>
-          <nav className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-            {navItem.map(item => (
-              <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-                <p className="text-xs sm:text-sm font-semibold leading-tight opacity-90">
-                  {item.label}
-                </p>
-                <p className="text-[10px] sm:text-[11px] leading-tight hidden sm:block opacity-60">
-                  {item.desc}
-                </p>
-              </NavLink>
-            ))}
+          <nav className="flex items-center gap-1 flex-shrink-0">
+            <NavLink to="/" end className={navClass}>Votar</NavLink>
+            <NavLink to="/clasificacion" className={navClass}>Clasificación</NavLink>
+            <NavLink to="/results" className={navClass}>Resultados</NavLink>
+            <NavLink to="/admin" className={navClass}>Admin</NavLink>
           </nav>
         </div>
       </header>

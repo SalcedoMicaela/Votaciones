@@ -6,9 +6,9 @@ import { Crown, Medal, Award } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
-function parseDocente(description) {
+function docenteLabel(description) {
   const m = (description || '').match(/^Docente:\s*(.+)/i)
-  return m ? m[1].trim() : ''
+  return m ? `Docente: ${m[1].trim()}` : ''
 }
 
 export default function LeaderboardPage() {
@@ -60,7 +60,8 @@ export default function LeaderboardPage() {
         <div className="mb-8">
           <LogoBar size="sm" className="mx-auto mb-3" />
           <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Clasificación</h1>
-          <p className="text-sm text-gray-400 mt-1">Fase actual: {phase}</p>
+          <p className="text-sm text-gray-500">Equipos mejores puntuados por el jurado y estudiantes</p>
+          <p className="text-xs text-gray-400 mt-1">Fase actual: {phase}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-sm p-8">
           <p className="text-gray-400">No hay equipos en esta fase.</p>
@@ -105,7 +106,7 @@ export default function LeaderboardPage() {
           <div>
             <h3 className={`font-bold text-white drop-shadow-lg leading-tight ${isBig ? 'text-xl sm:text-3xl' : 'text-sm sm:text-base'}`}>{team.name}</h3>
             {(() => {
-              const d = parseDocente(team.description)
+              const d = docenteLabel(team.description)
               return d ? (
                 <p className={`text-white/80 drop-shadow leading-tight ${isBig ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'} mt-0.5`}>{d}</p>
               ) : null
@@ -125,7 +126,7 @@ export default function LeaderboardPage() {
       <div className="text-center mb-8">
         <LogoBar size="sm" className="mx-auto mb-3" />
         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800">Clasificación</h1>
-        <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">Equipos mejores puntuados por el jurado y estudiantes. Clasificación de los que pasan a la siguiente etapa.</p>
+        <p className="text-sm text-gray-500 mt-1">Equipos mejores puntuados por el jurado y estudiantes</p>
         <p className="text-xs text-gray-400 mt-1">Fase actual: {phase}</p>
       </div>
 
@@ -167,7 +168,7 @@ export default function LeaderboardPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-gray-700 truncate">{team.name}</p>
                     {(() => {
-                      const d = parseDocente(team.description)
+                      const d = docenteLabel(team.description)
                       return d ? <p className="text-[11px] text-gray-400 truncate">{d}</p> : null
                     })()}
                   </div>
