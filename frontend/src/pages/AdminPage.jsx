@@ -690,6 +690,15 @@ export default function AdminPage() {
                     {showQR ? 'Ocultar QR general' : 'Mostrar QR general'}
                   </button>
                 </div>
+                {showQR && (
+                  <div className="mt-4 flex flex-col items-center p-5 sm:p-6 bg-gradient-to-br from-espe-50 to-white rounded-xl border border-espe-100">
+                    <div id="general-qr" className="bg-white p-3 rounded-xl shadow-sm"><QRCode value={FRONTEND_URL} size={180} /></div>
+                    <p className="mt-3 text-xs text-gray-500 text-center max-w-xs">Escanea para ir a la página principal de votación</p>
+                    <button onClick={() => downloadQr('general-qr', 'qr_votacion_general.png')} className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors">
+                      Descargar QR (PNG)
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* DESCRIPCIÓN Y LISTA DE IMPRIMIBLES */}
@@ -718,16 +727,6 @@ export default function AdminPage() {
                     <div><p className="font-semibold text-sm text-gray-800">QR subida de imágenes</p><p className="text-xs text-gray-400 mt-0.5">Cada equipo escanea su QR para subir su logo y foto del proyecto.</p></div>
                   </button>
                 </div>
-              </div>
-                {showQR && (
-                  <div className="mt-4 flex flex-col items-center p-5 sm:p-6 bg-gradient-to-br from-espe-50 to-white rounded-xl border border-espe-100">
-                    <div id="general-qr" className="bg-white p-3 rounded-xl shadow-sm"><QRCode value={FRONTEND_URL} size={180} /></div>
-                    <p className="mt-3 text-xs text-gray-500 text-center max-w-xs">Escanea para ir a la página principal de votación</p>
-                    <button onClick={() => downloadQr('general-qr', 'qr_votacion_general.png')} className="mt-3 text-xs font-semibold px-4 py-2 rounded-lg bg-gray-800 text-white hover:bg-gray-900 transition-colors">
-                      Descargar QR (PNG)
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* QR ACCESO JURADO */}
