@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { verifyPassword } = require('../auth')
-const { getCurrentPhase, isActive, getWeights } = require('../phase')
+const { getCurrentPhase, isActive, getWeights, getRubricMax } = require('../phase')
 
 function makeToken() {
   return crypto.randomBytes(16).toString('hex')
@@ -150,9 +150,10 @@ router.get('/ranking/public', async (req, res) => {
     const db = getDb()
     const phase = await getCurrentPhase(db)
     const { judgeMax, voteMax } = await getWeights(db)
-    const rubricMax = await require('../phase').getRubricMax(db) || 20
+    const rubricMax = await getRubricMax(db) || 20
 
-    const teams = await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray()
+    const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
+      .filter(t => isActive(t, phase))
     const ids = teams.map(t => t._id.toString())
 
     const voteAgg = await db.collection('votes')

@@ -338,7 +338,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
           </div>
 
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-            <span className="text-base font-semibold">Total: <span className="text-espe-700 text-lg">{total}</span> / {judgeMax}</span>
+            <span />
             <button
               onClick={save}
               disabled={saving || questions.length === 0 || !hasAllRequired()}

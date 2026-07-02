@@ -14,11 +14,11 @@ export default function LeaderboardPage() {
   useEffect(() => {
     load()
     socket.on('score:update', load)
-    socket.on('vote', load)
+    socket.on('vote:update', load)
     socket.on('phase:update', load)
     return () => {
       socket.off('score:update', load)
-      socket.off('vote', load)
+      socket.off('vote:update', load)
       socket.off('phase:update', load)
     }
   }, [])
