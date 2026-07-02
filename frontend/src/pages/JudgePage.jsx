@@ -100,6 +100,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState(false)
+  const [judgeMax, setJudgeMax] = useState(18)
 
   const headers = { headers: { 'x-judge-token': token } }
 
@@ -121,6 +122,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
       setPhase(res.data.phase)
       setQuestions(res.data.questions)
       setTeams(res.data.teams)
+      if (res.data.judgeMax) setJudgeMax(res.data.judgeMax)
       const init = {}
       res.data.teams.forEach(t => {
         init[t.id] = {}
@@ -250,7 +252,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
             <option value="">-- Selecciona un equipo --</option>
             {teams.map(t => (
               <option key={t.id} value={t.id}>
-                {t.name} {t.myScore ? `(✓ ${t.myScore.total}/20)` : '(pendiente)'}
+                {t.name} {t.myScore ? `(✓ ${t.myScore.total}/${judgeMax})` : '(pendiente)'}
               </option>
             ))}
           </select>
@@ -263,7 +265,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
               <div>
                 <p className="font-semibold text-gray-800">{selectedTeam.name}</p>
                 {eje.num > 0 && <span className="text-xs text-gray-500">{eje.label}</span>}
-                {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ {selectedTeam.myScore.total}/20</span>}
+                {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ {selectedTeam.myScore.total}/{judgeMax}</span>}
               </div>
             </div>
           )}
@@ -280,7 +282,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
             <div>
               <p className="font-semibold text-gray-800 text-lg">{selectedTeam.name}</p>
               {eje.num > 0 && <span className="text-xs text-gray-500">{eje.label}</span>}
-              {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ Calificado ({selectedTeam.myScore.total}/20)</span>}
+              {selectedTeam.myScore && <span className="text-xs text-espe-700 font-semibold ml-2">✓ Calificado ({selectedTeam.myScore.total}/{judgeMax})</span>}
             </div>
           </div>
         </div>
@@ -336,7 +338,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
           </div>
 
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
-            <span className="text-base font-semibold">Total: <span className="text-espe-700 text-lg">{total}</span> / 20</span>
+            <span className="text-base font-semibold">Total: <span className="text-espe-700 text-lg">{total}</span> / {judgeMax}</span>
             <button
               onClick={save}
               disabled={saving || questions.length === 0 || !hasAllRequired()}

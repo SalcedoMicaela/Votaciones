@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { verifyPassword } = require('../auth')
-const { getCurrentPhase, isActive } = require('../phase')
+const { getCurrentPhase, isActive, getWeights } = require('../phase')
 
 function makeToken() {
   return crypto.randomBytes(16).toString('hex')
@@ -56,6 +56,8 @@ router.get('/teams', judgeAuth, async (req, res) => {
     const phase = await getCurrentPhase(db)
     const judgeId = req.judge._id.toString()
 
+    const { judgeMax } = await getWeights(db)
+
     const questions = (await db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray())
       .map(q => ({
         id: q._id.toString(),
@@ -85,7 +87,7 @@ router.get('/teams', judgeAuth, async (req, res) => {
       }
     })
 
-    res.json({ phase, questions, teams: teamsOut })
+    res.json({ phase, questions, teams: teamsOut, judgeMax })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -137,6 +139,57 @@ router.post('/score', judgeAuth, async (req, res) => {
 
     req.app.get('io').emit('score:update', { teamId, phase })
     res.json({ ok: true, total })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Ranking público (solo nombre, logo, foto y nota final)
+router.get('/ranking/public', async (req, res) => {
+  try {
+    const db = getDb()
+    const phase = await getCurrentPhase(db)
+    const { judgeMax, voteMax } = await getWeights(db)
+    const rubricMax = await require('../phase').getRubricMax(db) || 20
+
+    const teams = await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray()
+    const ids = teams.map(t => t._id.toString())
+
+    const voteAgg = await db.collection('votes')
+      .aggregate([{ $match: { phase } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
+      .toArray()
+    const votos = {}
+    voteAgg.forEach(v => { votos[v._id] = v.n })
+    const maxVotos = ids.length ? Math.max(0, ...ids.map(id => votos[id] || 0)) : 0
+
+    const scoreAgg = await db.collection('scores')
+      .aggregate([
+        { $match: { phase } },
+        { $group: { _id: '$teamId', avg: { $avg: '$total' }, n: { $sum: 1 } } },
+      ])
+      .toArray()
+    const notas = {}
+    scoreAgg.forEach(s => { notas[s._id] = { avg: s.avg, n: s.n } })
+
+    const round2 = x => Math.round(x * 100) / 100
+
+    const rows = teams.map(t => {
+      const id = t._id.toString()
+      const nota = notas[id]?.avg || 0
+      const v = votos[id] || 0
+      const puntosNota = rubricMax > 0 ? (nota / rubricMax) * judgeMax : 0
+      const puntosVotos = maxVotos > 0 ? (v / maxVotos) * voteMax : 0
+      return {
+        id,
+        name: t.name,
+        logo: t.logo || '',
+        photo: t.photo || '',
+        final: round2(puntosNota + puntosVotos),
+      }
+    })
+
+    rows.sort((a, b) => b.final - a.final)
+    res.json({ phase, ranking: rows })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
