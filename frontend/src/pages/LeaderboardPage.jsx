@@ -47,7 +47,7 @@ export default function LeaderboardPage() {
   const top = ranking[0] || null
   const second = ranking[1] || null
   const third = ranking[2] || null
-  const rest = ranking.slice(3, 8)
+  const rest = ranking.slice(3, 10)
 
   if (!top) {
     return (
@@ -163,8 +163,8 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-      {ranking.length > 8 && (
-        <p className="text-center text-xs text-gray-400 mt-4">+{ranking.length - 8} equipos más</p>
+      {ranking.length > 10 && (
+        <p className="text-center text-xs text-gray-400 mt-4">+{ranking.length - 10} equipos más</p>
       )}
     </div>
   )
