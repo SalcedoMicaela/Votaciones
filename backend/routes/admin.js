@@ -422,6 +422,9 @@ router.post('/advance', adminAuth, async (req, res) => {
     await db.collection('settings').updateOne(
       { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
 
+    // Limpiar calificaciones de jurados de la fase anterior, mantener votos
+    await db.collection('scores').deleteMany({ phase })
+
     req.app.get('io').emit('phase:update', { phase: phase + 1 })
     req.app.get('io').emit('voting:toggle', false)
     res.json({ phase: phase + 1, passed: topIds.length })
