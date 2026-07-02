@@ -689,11 +689,36 @@ export default function AdminPage() {
                   <button onClick={() => setShowQR(!showQR)} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-espe-50 text-espe-700 hover:bg-espe-100 transition-colors">
                     {showQR ? 'Ocultar QR general' : 'Mostrar QR general'}
                   </button>
-                  <button onClick={() => printAll('general')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR general</button>
-                  <button onClick={() => printAll('vote')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR votación</button>
-                  <button onClick={() => printAll('judge-team')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">Imprimir QR jurado</button>
-                  <button onClick={() => printAll('upload')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR subida</button>
                 </div>
+              </div>
+
+              {/* DESCRIPCIÓN Y LISTA DE IMPRIMIBLES */}
+              <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm">
+                <h2 className="font-semibold text-gray-800 mb-3">Imprimir lotes de QR</h2>
+                <p className="text-xs text-gray-400 mb-4">Cada opción imprime una hoja con 2 QR por página.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button onClick={() => printAll('general')} className="flex items-start gap-3 text-left p-4 rounded-xl border border-gray-200 hover:border-espe-300 hover:bg-espe-50 transition-colors">
+                    <div className="h-10 w-10 rounded-lg bg-espe-50 flex items-center justify-center flex-shrink-0"><Vote className="w-5 h-5 text-espe-700" /></div>
+                    <div><p className="font-semibold text-sm text-gray-800">QR general de votación</p><p className="text-xs text-gray-400 mt-0.5">Lleva a la página principal para que los estudiantes elijan y voten por cualquier equipo.</p></div>
+                  </button>
+                  <button onClick={() => printAll('judge')} className="flex items-start gap-3 text-left p-4 rounded-xl border border-purple-200 hover:border-purple-300 hover:bg-purple-50 transition-colors">
+                    <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0"><UserCog className="w-5 h-5 text-purple-700" /></div>
+                    <div><p className="font-semibold text-sm text-gray-800">QR acceso jurados</p><p className="text-xs text-gray-400 mt-0.5">Lleva a la página de inicio de sesión para que los jurados califiquen desde su celular.</p></div>
+                  </button>
+                  <button onClick={() => printAll('judge-team')} className="flex items-start gap-3 text-left p-4 rounded-xl border border-purple-200 hover:border-purple-300 hover:bg-purple-50 transition-colors">
+                    <div className="h-10 w-10 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0"><UserCog className="w-5 h-5 text-purple-700" /></div>
+                    <div><p className="font-semibold text-sm text-gray-800">QR calificación por equipo (jurado)</p><p className="text-xs text-gray-400 mt-0.5">Cada jurado escanea el QR del equipo que debe calificar. Se loguea y ve el formulario de ese equipo directamente.</p></div>
+                  </button>
+                  <button onClick={() => printAll('vote')} className="flex items-start gap-3 text-left p-4 rounded-xl border border-gray-200 hover:border-espe-300 hover:bg-espe-50 transition-colors">
+                    <div className="h-10 w-10 rounded-lg bg-espe-50 flex items-center justify-center flex-shrink-0"><Vote className="w-5 h-5 text-espe-700" /></div>
+                    <div><p className="font-semibold text-sm text-gray-800">QR voto directo por equipo</p><p className="text-xs text-gray-400 mt-0.5">Cada persona escanea el QR de un equipo específico para votar directamente por él, sin pasar por la página principal.</p></div>
+                  </button>
+                  <button onClick={() => printAll('upload')} className="flex items-start gap-3 text-left p-4 rounded-xl border border-gray-200 hover:border-espe-300 hover:bg-espe-50 transition-colors">
+                    <div className="h-10 w-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0"><Camera className="w-5 h-5 text-gray-600" /></div>
+                    <div><p className="font-semibold text-sm text-gray-800">QR subida de imágenes</p><p className="text-xs text-gray-400 mt-0.5">Cada equipo escanea su QR para subir su logo y foto del proyecto.</p></div>
+                  </button>
+                </div>
+              </div>
                 {showQR && (
                   <div className="mt-4 flex flex-col items-center p-5 sm:p-6 bg-gradient-to-br from-espe-50 to-white rounded-xl border border-espe-100">
                     <div id="general-qr" className="bg-white p-3 rounded-xl shadow-sm"><QRCode value={FRONTEND_URL} size={180} /></div>
@@ -716,11 +741,10 @@ export default function AdminPage() {
                     <p className="text-xs sm:text-sm text-gray-500">Lleva a la página de inicio de sesión para que los jurados califiquen.</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 sm:gap-4 mb-3">
+                <div className="mb-3">
                   <button onClick={() => setShowJudgeQR(!showJudgeQR)} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
                     {showJudgeQR ? 'Ocultar QR jurado' : 'Mostrar QR jurado'}
                   </button>
-                  <button onClick={() => printAll('judge')} className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Imprimir QR jurado</button>
                 </div>
                 {showJudgeQR && (
                   <div className="mt-4 flex flex-col items-center p-5 sm:p-6 bg-gradient-to-br from-purple-50 to-white rounded-xl border border-purple-100">
@@ -1143,6 +1167,7 @@ export default function AdminPage() {
       </div>
 
       {/* Hoja imprimible (solo al imprimir) */}
+      <style>{`@media print{.print-grid-2>*:nth-child(2n){page-break-after:always}}`}</style>
       <div className="hidden print:block">
         {printMode === 'judge' ? (
           <div className="flex flex-col items-center justify-center min-h-screen -mt-20">
@@ -1166,9 +1191,9 @@ export default function AdminPage() {
           <div className="py-8">
             <h2 className="text-center text-3xl font-bold mb-2">QR calificación por equipo (jurado)</h2>
             <p className="text-center text-sm text-gray-500 mb-8">Cada jurado escanea el QR del equipo que debe calificar</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-6 print-grid-2">
               {teams.map(team => (
-                <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 break-inside-avoid bg-white shadow-sm">
+                <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 bg-white shadow-sm">
                   {(team.logo || team.photo) && (
                     <img src={team.logo || team.photo} alt={team.name} className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
                   )}
@@ -1188,9 +1213,9 @@ export default function AdminPage() {
                 ? 'Cada persona escanea el QR de un equipo para votar directo por él'
                 : 'Cada equipo escanea su QR para subir su logo y foto'}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-6 print-grid-2">
               {teams.map(team => (
-                <div key={team.id} className="text-center border border-gray-300 rounded-xl p-4 break-inside-avoid bg-white shadow-sm">
+                <div key={team.id} className="text-center border border-gray-300 rounded-xl p-4 bg-white shadow-sm">
                   {(team.logo || team.photo) && (
                     <img src={team.logo || team.photo} alt={team.name} className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
                   )}
