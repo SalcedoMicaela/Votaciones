@@ -463,4 +463,20 @@ router.post('/regress', adminAuth, async (req, res) => {
   }
 })
 
+// Histórico de ranking por fase
+router.get('/ranking/history', async (req, res) => {
+  try {
+    const db = getDb()
+    const currentPhase = await getCurrentPhase(db)
+    const phases = []
+    for (let p = 1; p <= currentPhase; p++) {
+      const ranking = await computeRanking(db, p)
+      phases.push({ phase: p, ranking })
+    }
+    res.json({ phases })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 module.exports = router
