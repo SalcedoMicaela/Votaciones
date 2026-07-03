@@ -1,0 +1,85 @@
+name: Deploy Backend To Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend-cloud-run.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: project-01900fb5-a41d-424c-940
+  PROJECT_NUMBER: '189364885425'
+  REGION: us-central1
+  SERVICE: votaciones-backend
+  REPOSITORY: votaciones
+  IMAGE: backend
+  MONGO_DB: votaciones-empremd
+  WIF_PROVIDER: projects/189364885425/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  DEPLOYER_SERVICE_ACCOUNT: github-deploy@project-01900fb5-a41d-424c-940.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Ensure Artifact Registry repository
+        run: |
+          gcloud artifacts repositories describe "$REPOSITORY" \
+            --location="$REGION" >/dev/null 2>&1 || \
+          gcloud artifacts repositories create "$REPOSITORY" \
+            --repository-format=docker \
+            --location="$REGION" \
+            --description="Docker images for Votaciones"
+
+      - name: Configure Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build Docker image
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}"
+          docker build \
+            -f backend/Dockerfile \
+            -t "${IMAGE_URI}:${GITHUB_SHA}" \
+            -t "${IMAGE_URI}:latest" \
+            backend
+
+      - name: Push Docker image
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}"
+          docker push "${IMAGE_URI}:${GITHUB_SHA}"
+          docker push "${IMAGE_URI}:latest"
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${GITHUB_SHA}"
+          gcloud run deploy "$SERVICE" \
+            --image="$IMAGE_URI" \
+            --region="$REGION" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8080 \
+            --memory=512Mi \
+            --cpu=1 \
+            --max-instances=10 \
+            --timeout=300 \
+            --update-env-vars="NODE_ENV=production,MONGO_DB=${MONGO_DB}" \
+            --update-secrets="MONGO=MONGO:latest,ADMIN_PASSWORD=ADMIN_PASSWORD:latest"
