@@ -205,21 +205,27 @@ export default function AdminPage() {
     }
   }
 
-  function editTeam(team) {
-    setForm({
-      name: team.name,
-      description: team.description,
-      photo: team.photo,
-      logo: team.logo || '',
-      whatsapp: team.whatsapp || '',
-      eje: team.eje || '',
-      members: (team.members || []).map(m => ({ nombre: m.nombre || '', carrera: m.carrera || '', correo: m.correo || '' })),
-    })
-    setPhotoPreview(team.photo)
-    setLogoPreview(team.logo || '')
-    setEditingId(team.id)
-    setSection('equipos')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  async function editTeam(team) {
+    try {
+      const full = (await axios.get(`${API}/api/admin/teams/${team.id}`, authHeaders())).data
+      setForm({
+        name: full.name,
+        description: full.description,
+        photo: full.photo,
+        logo: full.logo || '',
+        whatsapp: full.whatsapp || '',
+        eje: full.eje || '',
+        members: (full.members || []).map(m => ({ nombre: m.nombre || '', carrera: m.carrera || '', correo: m.correo || '' })),
+      })
+      setPhotoPreview(full.photo)
+      setLogoPreview(full.logo || '')
+      setEditingId(full.id)
+      setSection('equipos')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err) {
+      console.error(err)
+      showToast('Error al cargar equipo')
+    }
   }
 
   async function deleteTeam(id) {
@@ -526,12 +532,12 @@ export default function AdminPage() {
                     <div>
                       <label className="block text-xs font-medium mb-1">Logo</label>
                       <input type="file" accept="image/*" onChange={handleLogo} className="w-full text-xs" />
-                      {logoPreview && <img src={logoPreview} alt="Logo" className="mt-1 h-12 w-12 object-contain rounded-full bg-gray-50 ring-1 ring-gray-200" />}
+                      {logoPreview && <img src={logoPreview} alt="Logo" loading="lazy" className="mt-1 h-12 w-12 object-contain rounded-full bg-gray-50 ring-1 ring-gray-200" />}
                     </div>
                     <div>
                       <label className="block text-xs font-medium mb-1">Foto del equipo</label>
                       <input type="file" accept="image/*" onChange={handlePhoto} className="w-full text-xs" />
-                      {photoPreview && <img src={photoPreview} alt="Foto" className="mt-1 h-12 w-20 object-cover rounded-lg bg-gray-50" />}
+                      {photoPreview && <img src={photoPreview} alt="Foto" loading="lazy" className="mt-1 h-12 w-20 object-cover rounded-lg bg-gray-50" />}
                     </div>
                     <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">
                       {editingId ? 'Guardar cambios' : 'Agregar'}
@@ -563,7 +569,7 @@ export default function AdminPage() {
                 {filteredTeams.map(team => (
                   <div key={team.id} className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm flex gap-3 items-start">
                     {(team.logo || team.photo) && (
-                      <img src={team.logo || team.photo} alt={team.name} className="h-12 w-12 sm:h-14 sm:w-14 object-contain bg-gray-50 rounded-lg flex-shrink-0" />
+                      <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-12 w-12 sm:h-14 sm:w-14 object-contain bg-gray-50 rounded-lg flex-shrink-0" />
                     )}
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-sm truncate">{team.name}</h3>
@@ -768,7 +774,7 @@ export default function AdminPage() {
                   return (
                     <div key={team.id} className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm">
                       <div className="flex items-center gap-3 mb-3">
-                        {(team.logo || team.photo) && <img src={team.logo || team.photo} alt={team.name} className="h-9 w-9 sm:h-10 sm:w-10 object-contain bg-gray-50 rounded-lg flex-shrink-0" />}
+                        {(team.logo || team.photo) && <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-9 w-9 sm:h-10 sm:w-10 object-contain bg-gray-50 rounded-lg flex-shrink-0" />}
                         <h3 className="font-bold text-sm sm:text-base truncate flex-1">{team.name}</h3>
                       </div>
 
@@ -1195,7 +1201,7 @@ export default function AdminPage() {
               {teams.map(team => (
                 <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 bg-white shadow-sm">
                   {(team.logo || team.photo) && (
-                    <img src={team.logo || team.photo} alt={team.name} className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
+                    <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
                   )}
                   <p className="font-semibold text-sm mb-3 truncate">{team.name}</p>
                   <QRCode value={`${FRONTEND_URL}/jurado/${team.id}`} size={140} className="mx-auto" />
@@ -1217,7 +1223,7 @@ export default function AdminPage() {
               {teams.map(team => (
                 <div key={team.id} className="text-center border border-gray-300 rounded-xl p-4 bg-white shadow-sm">
                   {(team.logo || team.photo) && (
-                    <img src={team.logo || team.photo} alt={team.name} className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
+                    <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
                   )}
                   <p className="font-semibold text-sm mb-3 truncate">{team.name}</p>
                   {printMode === 'vote' ? (

@@ -149,7 +149,7 @@ export default function ResultsPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {team.logo ? (
-                            <img src={team.logo} alt="" className="w-7 h-7 rounded-full object-contain bg-white ring-1 ring-gray-200" />
+                            <img src={team.logo} alt="" loading="lazy" className="w-7 h-7 rounded-full object-contain bg-white ring-1 ring-gray-200" />
                           ) : (
                             <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-400 text-xs">{(team.name || '?').charAt(0)}</div>
                           )}
@@ -188,7 +188,7 @@ function PodiumCard({ team, medal, size, maxFinal }) {
       </div>
       <p className={`text-xs font-bold uppercase tracking-wider ${medal.color} mb-2`}>{medal.label}</p>
       {(team.logo || team.photo) ? (
-        <img src={team.logo || team.photo} alt={team.name} className={`${imgSize} mx-auto object-cover rounded-full ring-4 ring-white shadow-lg mb-3`} />
+        <img src={team.logo || team.photo} alt={team.name} loading="lazy" className={`${imgSize} mx-auto object-cover rounded-full ring-4 ring-white shadow-lg mb-3`} />
       ) : (
         <div className={`${imgSize} mx-auto rounded-full ring-4 ring-white shadow-lg mb-3 bg-gray-200 flex items-center justify-center text-gray-400 font-bold text-3xl`}>
           {team.name.charAt(0).toUpperCase()}

@@ -102,7 +102,7 @@ export default function UploadPage() {
           <div className="flex items-center gap-4">
             <div className="h-24 w-24 rounded-full bg-gray-50 ring-2 ring-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
               {logo ? (
-                <img src={logo} alt="Logo" className="w-full h-full object-contain p-1" />
+                <img src={logo} alt="Logo" loading="lazy" className="w-full h-full object-contain p-1" />
               ) : (
                 <ImageIcon className="w-8 h-8 text-gray-300" />
               )}
@@ -128,7 +128,7 @@ export default function UploadPage() {
           <label className="block text-sm font-semibold text-gray-700 mb-2">Foto del equipo</label>
           <div className="aspect-[4/3] w-full rounded-xl bg-gray-50 ring-2 ring-gray-100 overflow-hidden flex items-center justify-center mb-3">
             {photo ? (
-              <img src={photo} alt="Foto del equipo" className="w-full h-full object-contain" />
+              <img src={photo} alt="Foto del equipo" loading="lazy" className="w-full h-full object-contain" />
             ) : (
               <Camera className="w-12 h-12 text-gray-300" />
             )}

@@ -20,6 +20,7 @@ app.use('/api/admin', require('./routes/admin'))
 app.use('/api/vote', require('./routes/vote'))
 app.use('/api/upload', require('./routes/upload'))
 app.use('/api/judges', require('./routes/judges'))
+app.use('/api/images', require('./routes/images'))
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })

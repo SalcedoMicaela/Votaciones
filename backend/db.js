@@ -25,14 +25,23 @@ async function connect() {
   }
   await db.collection('votes').createIndex({ email: 1, phase: 1 }, { unique: true })
   await db.collection('votes').createIndex({ deviceId: 1, phase: 1 }, { unique: true, sparse: true })
+  await db.collection('votes').createIndex({ phase: 1, teamId: 1 })
 
   // Jurados, rúbrica y calificaciones
   await db.collection('judges').createIndex({ username: 1 }, { unique: true })
   await db.collection('judges').createIndex({ token: 1 }, { unique: true, sparse: true })
   await db.collection('scores').createIndex({ judgeId: 1, teamId: 1, phase: 1 }, { unique: true })
+  await db.collection('scores').createIndex({ phase: 1, teamId: 1 })
 
   // Token de subida único por equipo (para los links de carga de imágenes)
   await db.collection('teams').createIndex({ uploadToken: 1 }, { unique: true, sparse: true })
+  await db.collection('teams').createIndex({ phaseReached: 1, createdAt: 1 })
+
+  const settingsIdx = await db.collection('settings').indexes()
+  const hasSettingsKeyIdx = settingsIdx.some(i => i.key && i.key.key === 1)
+  if (!hasSettingsKeyIdx) {
+    await db.collection('settings').createIndex({ key: 1 }, { name: 'settings_key_lookup' })
+  }
 
   // Fase actual del evento (por defecto 1)
   await db.collection('settings').updateOne(

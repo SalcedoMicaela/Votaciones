@@ -39,15 +39,37 @@ async function getRubricMax(db) {
   return questions.reduce((s, q) => s + (Number(q.maxScore) || 0), 0)
 }
 
+function imageVersion(value) {
+  return value instanceof Date ? value.getTime() : ''
+}
+
+function imageUrl(base, id, field, hasImage, version) {
+  if (!base || !hasImage) return ''
+  const v = imageVersion(version) || id
+  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
+}
+
 // Equipos activos en una fase: phaseReached >= phase (default 1)
 function isActive(team, phase) {
   return (team.phaseReached || 1) >= phase
 }
 
 // Ranking combinado de una fase, solo equipos activos.
-async function computeRanking(db, phase) {
-  const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
-    .filter(t => isActive(t, phase))
+async function computeRanking(db, phase, imageBase = '') {
+  const teams = await db.collection('teams').aggregate([
+    { $sort: { createdAt: 1, _id: 1 } },
+    { $match: { $expr: { $gte: [{ $ifNull: ['$phaseReached', 1] }, phase] } } },
+    {
+      $project: {
+        name: 1,
+        eje: 1,
+        logoUpdatedAt: 1,
+        photoUpdatedAt: 1,
+        hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+        hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+      }
+    }
+  ]).toArray()
   const ids = teams.map(t => t._id.toString())
 
   const { judgeMax, voteMax } = await getWeights(db)
@@ -82,7 +104,8 @@ async function computeRanking(db, phase) {
     return {
       id,
       name: t.name,
-      logo: t.logo || '',
+      logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
+      photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
       eje: t.eje || '',
       notaJurados: round2(nota),
       rubricMax,

@@ -260,7 +260,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
           {selectedTeamId && teams.length > 0 && (
             <div className="flex items-center gap-3 mt-3 p-3 bg-espe-50 rounded-xl">
               {selectedTeam.logo
-                ? <img src={selectedTeam.logo} alt="" className="h-10 w-10 rounded-full object-contain bg-white ring-1 ring-gray-200" />
+                ? <img src={selectedTeam.logo} alt="" loading="lazy" className="h-10 w-10 rounded-full object-contain bg-white ring-1 ring-gray-200" />
                 : <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">{selectedTeam.name.charAt(0)}</div>}
               <div>
                 <p className="font-semibold text-gray-800">{selectedTeam.name}</p>
@@ -277,7 +277,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-6 border border-espe-200">
           <div className="flex items-center gap-3">
             {selectedTeam.logo
-              ? <img src={selectedTeam.logo} alt="" className="h-14 w-14 rounded-full object-contain bg-white ring-2 ring-espe-200" />
+              ? <img src={selectedTeam.logo} alt="" loading="lazy" className="h-14 w-14 rounded-full object-contain bg-white ring-2 ring-espe-200" />
               : <div className="h-14 w-14 rounded-full bg-espe-100 flex items-center justify-center font-bold text-espe-600 text-lg">{selectedTeam.name.charAt(0)}</div>}
             <div>
               <p className="font-semibold text-gray-800 text-lg">{selectedTeam.name}</p>

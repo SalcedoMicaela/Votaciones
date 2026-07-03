@@ -3,6 +3,7 @@ const router = express.Router()
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { getCurrentPhase } = require('../phase')
+const { clearRankingCache } = require('../rankingCache')
 
 // Solo se acepta el correo institucional de la ESPE (1 voto por correo y por fase)
 const EMAIL_RE = /^[^\s@]+@espe\.edu\.ec$/i
@@ -24,14 +25,48 @@ function isActive(team, phase) {
   return (team.phaseReached || 1) >= phase
 }
 
-function mapPublicTeam(t) {
+function getImageBase(req) {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+function imageVersion(value) {
+  return value instanceof Date ? value.getTime() : ''
+}
+
+function imageUrl(base, id, field, hasImage, version) {
+  if (!hasImage) return ''
+  const v = imageVersion(version) || id
+  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
+}
+
+async function findPublicTeams(db, phase) {
+  return db.collection('teams').aggregate([
+    { $sort: { createdAt: 1, _id: 1 } },
+    { $match: { $expr: { $gte: [{ $ifNull: ['$phaseReached', 1] }, phase] } } },
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        eje: 1,
+        members: 1,
+        logoUpdatedAt: 1,
+        photoUpdatedAt: 1,
+        hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+        hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+      }
+    }
+  ]).toArray()
+}
+
+function mapPublicTeam(t, imageBase) {
+  const id = t._id.toString()
   return {
-    id: t._id.toString(),
+    id,
     name: t.name,
     description: t.description || '',
     eje: t.eje || '',
-    logo: t.logo || '',
-    photo: t.photo || '',
+    logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
+    photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
     members: t.members || [],
   }
 }
@@ -39,7 +74,7 @@ function mapPublicTeam(t) {
 // Resultados de la fase actual (solo equipos activos, votos de esa fase)
 async function computeResults(db) {
   const phase = await getCurrentPhase(db)
-  const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
+  const teams = (await db.collection('teams').find({}, { projection: { logo: 0, photo: 0, uploadToken: 0 } }).sort({ createdAt: 1, _id: 1 }).toArray())
     .filter(t => isActive(t, phase))
   const counts = await db
     .collection('votes')
@@ -52,8 +87,8 @@ async function computeResults(db) {
   const results = teams.map(t => ({
     id: t._id.toString(),
     name: t.name,
-    logo: t.logo || '',
-    photo: t.photo || '',
+    logo: '',
+    photo: '',
     description: t.description || '',
     eje: t.eje || '',
     members: t.members || [],
@@ -68,9 +103,9 @@ router.get('/teams', async (req, res) => {
   try {
     const db = getDb()
     const phase = await getCurrentPhase(db)
-    const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
-      .filter(t => isActive(t, phase))
-    res.json({ phase, teams: teams.map(mapPublicTeam) })
+    const teams = await findPublicTeams(db, phase)
+    const imageBase = getImageBase(req)
+    res.json({ phase, teams: teams.map(t => mapPublicTeam(t, imageBase)) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -123,6 +158,7 @@ router.post('/', async (req, res) => {
       throw e
     }
 
+    clearRankingCache()
     const data = await computeResults(db)
     req.app.get('io').emit('vote:update', data)
 

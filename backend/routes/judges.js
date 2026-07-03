@@ -5,9 +5,24 @@ const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { verifyPassword } = require('../auth')
 const { getCurrentPhase, isActive, getWeights, getRubricMax } = require('../phase')
+const { getCached, clearRankingCache } = require('../rankingCache')
 
 function makeToken() {
   return crypto.randomBytes(16).toString('hex')
+}
+
+function getImageBase(req) {
+  return `${req.protocol}://${req.get('host')}`
+}
+
+function imageVersion(value) {
+  return value instanceof Date ? value.getTime() : ''
+}
+
+function imageUrl(base, id, field, hasImage, version) {
+  if (!hasImage) return ''
+  const v = imageVersion(version) || id
+  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
 }
 
 // Autenticación del jurado por token de sesión (header x-judge-token)
@@ -67,7 +82,7 @@ router.get('/teams', judgeAuth, async (req, res) => {
         maxScore: q.maxScore,
       }))
 
-    const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
+    const teams = (await db.collection('teams').find({}, { projection: { logo: 0, photo: 0, description: 0, uploadToken: 0 } }).sort({ createdAt: 1, _id: 1 }).toArray())
       .filter(t => isActive(t, phase))
 
     const myScores = await db.collection('scores').find({ judgeId, phase }).toArray()
@@ -137,6 +152,7 @@ router.post('/score', judgeAuth, async (req, res) => {
       { upsert: true }
     )
 
+    clearRankingCache()
     req.app.get('io').emit('score:update', { teamId, phase })
     res.json({ ok: true, total })
   } catch (err) {
@@ -149,11 +165,25 @@ router.get('/ranking/public', async (req, res) => {
   try {
     const db = getDb()
     const phase = await getCurrentPhase(db)
+    const imageBase = getImageBase(req)
+    const ranking = await getCached(`public:${phase}:${imageBase}`, async () => {
     const { judgeMax, voteMax } = await getWeights(db)
     const rubricMax = await getRubricMax(db) || 20
 
-    const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
-      .filter(t => isActive(t, phase))
+    const teams = await db.collection('teams').aggregate([
+      { $sort: { createdAt: 1, _id: 1 } },
+      { $match: { $expr: { $gte: [{ $ifNull: ['$phaseReached', 1] }, phase] } } },
+      {
+        $project: {
+          name: 1,
+          description: 1,
+          logoUpdatedAt: 1,
+          photoUpdatedAt: 1,
+          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+          hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+        }
+      }
+    ]).toArray()
     const ids = teams.map(t => t._id.toString())
 
     const voteAgg = await db.collection('votes')
@@ -183,15 +213,17 @@ router.get('/ranking/public', async (req, res) => {
       return {
         id,
         name: t.name,
-        logo: t.logo || '',
-        photo: t.photo || '',
+        logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
+        photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
         description: t.description || '',
         final: round2(puntosNota + puntosVotos),
       }
     })
 
     rows.sort((a, b) => b.final - a.final)
-    res.json({ phase, ranking: rows })
+    return rows
+    })
+    res.json({ phase, ranking })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
