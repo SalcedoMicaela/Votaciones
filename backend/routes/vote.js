@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
-const { getCurrentPhase } = require('../phase')
+const { getCurrentPhase, isActive } = require('../phase')
 const { clearRankingCache } = require('../rankingCache')
 
 // Solo se acepta el correo institucional de la ESPE (1 voto por correo y por fase)
@@ -19,10 +19,6 @@ function getClientIp(req) {
     if (ips.length > 0) return ips[0]
   }
   return req.socket?.remoteAddress || req.ip || ''
-}
-
-function isActive(team, phase) {
-  return (team.phaseReached || 1) >= phase
 }
 
 function getImageBase(req) {

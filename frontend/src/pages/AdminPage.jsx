@@ -6,7 +6,7 @@ import socket from '../socket'
 import { resizeImage } from '../utils/image'
 import { whatsappLink, downloadQr, safeFilename } from '../utils/qr'
 import { ejeInfo } from '../utils/eje'
-import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy, Eye, EyeOff } from 'lucide-react'
+import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy, Eye, EyeOff, FileText } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -20,6 +20,7 @@ const SECTIONS = [
   { key: 'fases', label: 'Fases', Icon: Layers },
   { key: 'jurados', label: 'Jurados', Icon: UserCog },
   { key: 'rubrica', label: 'Rúbrica', Icon: ClipboardList },
+  { key: 'calificaciones', label: 'Calificaciones', Icon: FileText },
   { key: 'qr', label: 'QR y enlaces', Icon: QrCode },
   { key: 'config', label: 'Configuración', Icon: Settings },
 ]
@@ -65,29 +66,26 @@ export default function AdminPage() {
   const [judgePasswords, setJudgePasswords] = useState({})
   const [weights, setWeights] = useState({ judgeMax: 18, voteMax: 2 })
   const [weightForm, setWeightForm] = useState({ judgeMax: 18, voteMax: 2 })
+  const [scorePhase, setScorePhase] = useState(1)
+  const [scoreData, setScoreData] = useState({ judges: [], questions: [], teams: [] })
 
   useEffect(() => {
     if (!authenticated) return
-    loadTeams()
-    loadStatus()
+    loadDashboard()
     loadLinks()
-    loadResults()
-    loadJudges()
-    loadQuestions()
-    loadPhaseAndRanking()
-    loadWeights()
-    const onVote = d => { setResults(d); loadRanking() }
+    const onVote = d => { setResults(d); loadRanking(); loadScores() }
     const onToggle = a => setVotingActive(a)
-    const onScore = () => loadRanking()
+    const onScore = () => { loadRanking(); loadScores() }
+    const onPhase = () => { loadPhaseAndRanking(); loadScores() }
     socket.on('vote:update', onVote)
     socket.on('voting:toggle', onToggle)
     socket.on('score:update', onScore)
-    socket.on('phase:update', loadPhaseAndRanking)
+    socket.on('phase:update', onPhase)
     return () => {
       socket.off('vote:update', onVote)
       socket.off('voting:toggle', onToggle)
       socket.off('score:update', onScore)
-      socket.off('phase:update', loadPhaseAndRanking)
+      socket.off('phase:update', onPhase)
     }
   }, [authenticated])
 
@@ -98,6 +96,25 @@ export default function AdminPage() {
 
   const authHeaders = () => ({ headers: { 'x-admin-password': password } })
 
+  async function loadDashboard() {
+    try {
+      const res = await axios.get(`${API}/api/admin/dashboard-data`)
+      const d = res.data
+      setTeams(d.teams)
+      setVotingActive(d.votingActive)
+      setPhaseNum(d.phase)
+      setRankingPhase(d.phase)
+      setResults(d.results)
+      setJudges(d.judges)
+      setQuestions(d.questions)
+      setWeights(d.weights)
+      setWeightForm({ judgeMax: d.weights.judgeMax, voteMax: d.weights.voteMax })
+      setScorePhase(d.phase)
+      setScoreData(d.scoresDetail)
+      const r = await axios.get(`${API}/api/admin/ranking`, { params: { phase: d.phase } })
+      setRanking(r.data.ranking)
+    } catch (err) { console.error(err) }
+  }
   async function loadTeams() {
     try { setTeams((await axios.get(`${API}/api/admin/teams`)).data) } catch (err) { console.error(err) }
   }
@@ -367,6 +384,13 @@ export default function AdminPage() {
       setWeights(res.data)
       setWeightForm({ judgeMax: res.data.judgeMax, voteMax: res.data.voteMax })
     } catch (e) {}
+  }
+  async function loadScores(ph) {
+    try {
+      const p = ph ?? scorePhase
+      const res = await axios.get(`${API}/api/admin/scores-detail`, { params: { phase: p } })
+      setScoreData(res.data)
+    } catch (e) { console.error(e) }
   }
   async function saveWeights(e) {
     e.preventDefault()
@@ -1129,6 +1153,84 @@ export default function AdminPage() {
                 ))}
                 {questions.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">Sin preguntas. Agrega las preguntas de la rúbrica (la suma de máximos debe dar 20).</p>}
               </div>
+            </div>
+          )}
+
+          {/* ===== CALIFICACIONES ===== */}
+          {section === 'calificaciones' && (
+            <div className="space-y-6">
+              <h1 className="text-2xl font-bold text-gray-800">Calificaciones por equipo</h1>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-gray-500">Fase:</span>
+                {Array.from({ length: phaseNum }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => { setScorePhase(p); loadScores(p) }}
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${scorePhase === p ? 'bg-gray-800 text-white' : 'bg-white ring-1 ring-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+                    Fase {p}
+                  </button>
+                ))}
+              </div>
+
+              {scoreData.teams.length === 0 ? (
+                <p className="text-center text-gray-400 py-10">No hay equipos activos en esta fase.</p>
+              ) : (
+                scoreData.teams.map(team => (
+                  <div key={team.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 font-bold text-gray-800 border-b border-gray-100 flex items-center gap-2">
+                      {team.logo && <img src={team.logo} alt="" className="w-6 h-6 rounded-full object-contain bg-gray-50 ring-1 ring-gray-200" />}
+                      {team.name}
+                      <span className="text-xs font-normal text-gray-400 ml-auto">{team.scores.length} jurado{team.scores.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    {team.scores.length === 0 ? (
+                      <p className="text-center text-gray-400 py-6 text-sm">Sin calificaciones en esta fase</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 text-xs text-gray-500 uppercase">
+                              <th className="text-left px-3 py-2 font-semibold">Juez</th>
+                              {scoreData.questions.map(q => (
+                                <th key={q.id} className="text-center px-2 py-2 font-semibold max-w-[120px] truncate" title={q.text}>
+                                  {q.text.length > 25 ? q.text.slice(0, 25) + '…' : q.text}
+                                </th>
+                              ))}
+                              <th className="text-center px-3 py-2 font-semibold">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {team.scores.map(sc => (
+                              <tr key={sc.judgeId} className="hover:bg-gray-50/50">
+                                <td className="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">{sc.judgeName}</td>
+                                {scoreData.questions.map(q => {
+                                  const ans = sc.answers.find(a => a.questionId === q.id)
+                                  return (
+                                    <td key={q.id} className="text-center px-2 py-2">
+                                      {q.type === 'text' ? (
+                                        ans?.text ? (
+                                          <span className="text-[11px] text-gray-400 italic cursor-help" title={ans.text}>
+                                            &ldquo;{ans.text.length > 18 ? ans.text.slice(0, 18) + '…' : ans.text}&rdquo;
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-300">—</span>
+                                        )
+                                      ) : (
+                                        <span className={`font-semibold ${ans?.points !== null && ans?.points !== undefined ? 'text-gray-700' : 'text-gray-300'}`}>
+                                          {ans?.points ?? '—'}
+                                        </span>
+                                      )}
+                                    </td>
+                                  )
+                                })}
+                                <td className="text-center px-3 py-2 font-bold text-espe-700">{sc.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           )}
 
