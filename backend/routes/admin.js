@@ -422,9 +422,7 @@ router.post('/advance', adminAuth, async (req, res) => {
     await db.collection('settings').updateOne(
       { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
 
-    // Limpiar calificaciones de jurados de la fase anterior, mantener votos
-    await db.collection('scores').deleteMany({ phase })
-
+    // Las calificaciones de jurados se conservan entre fases (persistencia histórica)
     req.app.get('io').emit('phase:update', { phase: phase + 1 })
     req.app.get('io').emit('voting:toggle', false)
     res.json({ phase: phase + 1, passed: topIds.length })
@@ -442,8 +440,7 @@ router.post('/regress', adminAuth, async (req, res) => {
 
     const prevPhase = phase - 1
 
-    // Borrar solo calificaciones (los votos se conservan entre fases)
-    await db.collection('scores').deleteMany({ phase })
+    // Las calificaciones y votos se conservan entre fases
 
     // Equipos que avanzaron en la fase anterior -> los regresa
     await db.collection('teams').updateMany(
