@@ -442,8 +442,7 @@ router.post('/regress', adminAuth, async (req, res) => {
 
     const prevPhase = phase - 1
 
-    // Borrar votos y calificaciones de la fase actual
-    await db.collection('votes').deleteMany({ phase })
+    // Borrar solo calificaciones (los votos se conservan entre fases)
     await db.collection('scores').deleteMany({ phase })
 
     // Equipos que avanzaron en la fase anterior -> los regresa

@@ -53,9 +53,9 @@ async function computeRanking(db, phase) {
   const { judgeMax, voteMax } = await getWeights(db)
   const rubricMax = await getRubricMax(db) || 20
 
-  // votos por equipo en la fase
+  // votos acumulados de todas las fases (persisten al avanzar)
   const voteAgg = await db.collection('votes')
-    .aggregate([{ $match: { phase } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
+    .aggregate([{ $match: { phase: { $lte: phase } } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
     .toArray()
   const votos = {}
   voteAgg.forEach(v => { votos[v._id] = v.n })

@@ -157,7 +157,7 @@ router.get('/ranking/public', async (req, res) => {
     const ids = teams.map(t => t._id.toString())
 
     const voteAgg = await db.collection('votes')
-      .aggregate([{ $match: { phase } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
+      .aggregate([{ $match: { phase: { $lte: phase } } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
       .toArray()
     const votos = {}
     voteAgg.forEach(v => { votos[v._id] = v.n })
