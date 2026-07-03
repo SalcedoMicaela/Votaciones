@@ -1,4 +1,4 @@
-name: Deploy Backend To Cloud Run
+name: Despliegue Backend A Cloud Run
 
 on:
   push:
@@ -26,23 +26,25 @@ env:
 
 jobs:
   deploy:
+    name: Construir Y Desplegar Backend
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Fase 1 - Descargar Codigo Del Repositorio
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
+      - name: Fase 2 - Autenticar Con Google Cloud Sin Secrets
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.DEPLOYER_SERVICE_ACCOUNT }}
 
-      - name: Set up gcloud
+      - name: Fase 3 - Preparar CLI De Google Cloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Ensure Artifact Registry repository
+      - name: Fase 4 - Verificar Artifact Registry
         run: |
+          echo "Verificando repositorio Docker: ${REGION}/${REPOSITORY}"
           gcloud artifacts repositories describe "$REPOSITORY" \
             --location="$REGION" >/dev/null 2>&1 || \
           gcloud artifacts repositories create "$REPOSITORY" \
@@ -50,27 +52,33 @@ jobs:
             --location="$REGION" \
             --description="Docker images for Votaciones"
 
-      - name: Configure Docker authentication
-        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Fase 5 - Autenticar Docker Con Artifact Registry
+        run: |
+          echo "Configurando Docker para publicar en ${REGION}-docker.pkg.dev"
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
-      - name: Build Docker image
+      - name: Fase 6 - Construir Imagen Docker Del Backend
         run: |
           IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}"
+          echo "Construyendo imagen: ${IMAGE_URI}:${GITHUB_SHA}"
           docker build \
             -f backend/Dockerfile \
             -t "${IMAGE_URI}:${GITHUB_SHA}" \
             -t "${IMAGE_URI}:latest" \
             backend
 
-      - name: Push Docker image
+      - name: Fase 7 - Publicar Imagen En Artifact Registry
         run: |
           IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}"
+          echo "Publicando imagen versionada: ${IMAGE_URI}:${GITHUB_SHA}"
           docker push "${IMAGE_URI}:${GITHUB_SHA}"
+          echo "Publicando alias latest: ${IMAGE_URI}:latest"
           docker push "${IMAGE_URI}:latest"
 
-      - name: Deploy to Cloud Run
+      - name: Fase 8 - Desplegar Servicio En Cloud Run
         run: |
           IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${GITHUB_SHA}"
+          echo "Desplegando servicio ${SERVICE} en ${REGION}"
           gcloud run deploy "$SERVICE" \
             --image="$IMAGE_URI" \
             --region="$REGION" \
@@ -83,3 +91,39 @@ jobs:
             --timeout=300 \
             --update-env-vars="NODE_ENV=production,MONGO_DB=${MONGO_DB}" \
             --update-secrets="MONGO=MONGO:latest,ADMIN_PASSWORD=ADMIN_PASSWORD:latest"
+
+      - name: Fase 9 - Obtener URL Publica Del Backend
+        id: backend-url
+        run: |
+          BACKEND_URL="$(gcloud run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')"
+          echo "BACKEND_URL=${BACKEND_URL}" >> "$GITHUB_ENV"
+          echo "backend_url=${BACKEND_URL}" >> "$GITHUB_OUTPUT"
+          echo "Backend desplegado en: ${BACKEND_URL}"
+
+      - name: Fase 10 - Verificar Salud Del Backend
+        run: |
+          echo "Probando endpoint de salud: ${BACKEND_URL}/api/health"
+          curl --fail --show-error --silent --max-time 30 "${BACKEND_URL}/api/health"
+          echo ""
+          echo "Backend respondió correctamente."
+
+      - name: Resumen Del Despliegue
+        if: always()
+        run: |
+          {
+            echo "## Resumen Del Despliegue Backend"
+            echo ""
+            echo "| Campo | Valor |"
+            echo "|---|---|"
+            echo "| Estado del job | ${{ job.status }} |"
+            echo "| Servicio Cloud Run | ${SERVICE} |"
+            echo "| Region | ${REGION} |"
+            echo "| Imagen | ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}:${GITHUB_SHA} |"
+            echo "| URL Backend | ${BACKEND_URL:-No disponible} |"
+            echo ""
+            echo "Si el estado es success, usar esta URL como VITE_API_URL en Vercel:"
+            echo ""
+            echo '```text'
+            echo "${BACKEND_URL:-No disponible}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
