@@ -19,6 +19,7 @@ export default function TeamCard({ team, onVote, disabled, voted }) {
           <img
             src={team.photo}
             alt={team.name}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -28,7 +29,7 @@ export default function TeamCard({ team, onVote, disabled, voted }) {
         )}
         {team.logo && (
           <div className="absolute top-3 left-3 h-12 w-12 rounded-full bg-white shadow-md ring-2 ring-white overflow-hidden flex items-center justify-center">
-            <img src={team.logo} alt={`Logo ${team.name}`} className="w-full h-full object-contain p-0.5" />
+            <img src={team.logo} alt={`Logo ${team.name}`} loading="lazy" className="w-full h-full object-contain p-0.5" />
           </div>
         )}
         {voted && (

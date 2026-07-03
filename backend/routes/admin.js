@@ -4,7 +4,8 @@ const crypto = require('crypto')
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { hashPassword, verifyPassword } = require('../auth')
-const { getCurrentPhase, setCurrentPhase, computeRanking, getWeights, setWeights } = require('../phase')
+const { getCurrentPhase, setCurrentPhase, computeRanking, isActive, getWeights, setWeights } = require('../phase')
+const { getCached, clearRankingCache } = require('../rankingCache')
 
 // Valida una contraseña contra la guardada (hasheada) en la BD.
 async function isValidAdminPassword(password) {
@@ -73,6 +74,31 @@ function mapTeam(doc) {
   }
 }
 
+function imageVersion(value) {
+  return value instanceof Date ? value.getTime() : ''
+}
+
+function imageUrl(base, id, field, hasImage, version) {
+  if (!hasImage) return ''
+  const v = imageVersion(version) || id
+  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
+}
+
+function mapTeamList(doc, imageBase) {
+  const id = doc._id.toString()
+  return {
+    id,
+    name: doc.name,
+    description: doc.description || '',
+    eje: doc.eje || '',
+    logo: imageUrl(imageBase, id, 'logo', doc.hasLogo, doc.logoUpdatedAt),
+    photo: imageUrl(imageBase, id, 'photo', doc.hasPhoto, doc.photoUpdatedAt),
+    whatsapp: doc.whatsapp || '',
+    members: doc.members || [],
+    phaseReached: doc.phaseReached || 1,
+  }
+}
+
 // Normaliza el arreglo de integrantes a { nombre, carrera, correo }
 function sanitizeMembers(members) {
   if (!Array.isArray(members)) return undefined
@@ -89,10 +115,38 @@ router.get('/teams', async (req, res) => {
   try {
     const teams = await getDb()
       .collection('teams')
-      .find()
-      .sort({ createdAt: 1, _id: 1 })
+      .aggregate([
+        { $sort: { createdAt: 1, _id: 1 } },
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            eje: 1,
+            whatsapp: 1,
+            members: 1,
+            phaseReached: 1,
+            logoUpdatedAt: 1,
+            photoUpdatedAt: 1,
+            hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+            hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+          }
+        }
+      ])
       .toArray()
-    res.json(teams.map(mapTeam))
+    const imageBase = `${req.protocol}://${req.get('host')}`
+    res.json(teams.map(t => mapTeamList(t, imageBase)))
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/teams/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Team not found' })
+  try {
+    const team = await getDb().collection('teams').findOne({ _id: new ObjectId(id) })
+    if (!team) return res.status(404).json({ error: 'Team not found' })
+    res.json(mapTeam(team))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -107,12 +161,15 @@ router.post('/teams', adminAuth, async (req, res) => {
       eje: eje || '',
       logo: logo || '',
       photo: photo || '',
+      logoUpdatedAt: logo ? new Date() : null,
+      photoUpdatedAt: photo ? new Date() : null,
       whatsapp: whatsapp || '',
       uploadToken: makeToken(),
       members: sanitizeMembers(members) || [],
       createdAt: new Date(),
     }
     const result = await getDb().collection('teams').insertOne(doc)
+    clearRankingCache()
     res.json(mapTeam({ ...doc, _id: result.insertedId }))
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -122,7 +179,18 @@ router.post('/teams', adminAuth, async (req, res) => {
 // Links de subida por equipo (protegido). Genera token si falta.
 router.get('/links', adminAuth, async (req, res) => {
   try {
-    const teams = await getDb().collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray()
+    const teams = await getDb().collection('teams').aggregate([
+      { $sort: { createdAt: 1, _id: 1 } },
+      {
+        $project: {
+          name: 1,
+          uploadToken: 1,
+          whatsapp: 1,
+          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+          hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+        }
+      }
+    ]).toArray()
     const out = []
     for (const t of teams) {
       let token = t.uploadToken
@@ -135,8 +203,8 @@ router.get('/links', adminAuth, async (req, res) => {
         name: t.name,
         token,
         whatsapp: t.whatsapp || '',
-        hasLogo: !!t.logo,
-        hasPhoto: !!t.photo,
+        hasLogo: t.hasLogo,
+        hasPhoto: t.hasPhoto,
       })
     }
     res.json(out)
@@ -153,8 +221,14 @@ router.put('/teams/:id', adminAuth, async (req, res) => {
     const _id = new ObjectId(id)
     const set = { name, description: description || '' }
     if (eje !== undefined) set.eje = eje
-    if (photo !== undefined) set.photo = photo
-    if (logo !== undefined) set.logo = logo
+    if (photo !== undefined) {
+      set.photo = photo
+      set.photoUpdatedAt = new Date()
+    }
+    if (logo !== undefined) {
+      set.logo = logo
+      set.logoUpdatedAt = new Date()
+    }
     if (whatsapp !== undefined) set.whatsapp = whatsapp
     const cleanMembers = sanitizeMembers(members)
     if (cleanMembers !== undefined) set.members = cleanMembers
@@ -164,6 +238,7 @@ router.put('/teams/:id', adminAuth, async (req, res) => {
     )
     if (matchedCount === 0) return res.status(404).json({ error: 'Team not found' })
     const updated = await getDb().collection('teams').findOne({ _id })
+    clearRankingCache()
     res.json(mapTeam(updated))
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -181,6 +256,7 @@ router.delete('/teams/:id', adminAuth, async (req, res) => {
     // Borrar votos y scores asociados (equivale al ON DELETE CASCADE)
     await getDb().collection('votes').deleteMany({ teamId: id })
     await getDb().collection('scores').deleteMany({ teamId: id })
+    clearRankingCache()
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -224,6 +300,7 @@ router.post('/reset-all', adminAuth, async (req, res) => {
       { key: 'current_phase' }, { $set: { value: '1' } }, { upsert: true })
     await db.collection('settings').updateOne(
       { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
+    clearRankingCache()
     req.app.get('io').emit('vote:update', { results: [], total: 0 })
     req.app.get('io').emit('phase:update', { phase: 1 })
     req.app.get('io').emit('voting:toggle', false)
@@ -245,6 +322,7 @@ router.get('/weights', async (req, res) => {
 router.post('/weights', adminAuth, async (req, res) => {
   try {
     await setWeights(getDb(), Number(req.body.judgeMax), Number(req.body.voteMax))
+    clearRankingCache()
     res.json({ ok: true })
   } catch (err) { res.status(400).json({ error: err.message }) }
 })
@@ -297,6 +375,7 @@ router.post('/questions', adminAuth, async (req, res) => {
   try {
     const doc = { ...fields, order: Number(req.body.order) || 0, createdAt: new Date() }
     const r = await getDb().collection('questions').insertOne(doc)
+    clearRankingCache()
     res.json(mapQuestion({ ...doc, _id: r.insertedId }))
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -311,6 +390,7 @@ router.put('/questions/:id', adminAuth, async (req, res) => {
   if (req.body.order !== undefined) set.order = Number(req.body.order)
   try {
     await getDb().collection('questions').updateOne({ _id: new ObjectId(id) }, { $set: set })
+    clearRankingCache()
     res.json({ ok: true })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
@@ -320,6 +400,7 @@ router.delete('/questions/:id', adminAuth, async (req, res) => {
   if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Pregunta no encontrada' })
   try {
     await getDb().collection('questions').deleteOne({ _id: new ObjectId(id) })
+    clearRankingCache()
     res.json({ ok: true })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
@@ -399,7 +480,8 @@ router.get('/ranking', async (req, res) => {
   try {
     const db = getDb()
     const phase = req.query.phase ? parseInt(req.query.phase, 10) : await getCurrentPhase(db)
-    const ranking = await computeRanking(db, phase)
+    const imageBase = `${req.protocol}://${req.get('host')}`
+    const ranking = await getCached(`admin-ranking:${phase}:${imageBase}`, () => computeRanking(db, phase, imageBase))
     res.json({ phase, ranking })
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
@@ -424,6 +506,7 @@ router.post('/advance', adminAuth, async (req, res) => {
       { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
 
     // Las calificaciones de jurados se conservan entre fases (persistencia histórica)
+    clearRankingCache()
     req.app.get('io').emit('phase:update', { phase: phase + 1 })
     req.app.get('io').emit('voting:toggle', false)
     res.json({ phase: phase + 1, passed: topIds.length })
@@ -455,6 +538,7 @@ router.post('/regress', adminAuth, async (req, res) => {
     await db.collection('settings').updateOne(
       { key: 'voting_active' }, { $set: { value: 'false' } }, { upsert: true })
 
+    clearRankingCache()
     req.app.get('io').emit('phase:update', { phase: prevPhase })
     req.app.get('io').emit('voting:toggle', false)
     req.app.get('io').emit('vote:update', { results: [], total: 0 })
@@ -469,10 +553,13 @@ router.get('/ranking/history', async (req, res) => {
   try {
     const db = getDb()
     const currentPhase = await getCurrentPhase(db)
-    const rankings = await Promise.all(
-      Array.from({ length: currentPhase }, (_, i) => computeRanking(db, i + 1))
-    )
-    const phases = rankings.map((ranking, i) => ({ phase: i + 1, ranking }))
+    const imageBase = `${req.protocol}://${req.get('host')}`
+    const phases = await getCached(`history:${currentPhase}:${imageBase}`, async () => {
+      const rankings = await Promise.all(
+        Array.from({ length: currentPhase }, (_, i) => computeRanking(db, i + 1, imageBase))
+      )
+      return rankings.map((ranking, i) => ({ phase: i + 1, ranking }))
+    })
     res.json({ phases })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -483,15 +570,32 @@ router.get('/ranking/history', async (req, res) => {
 router.get('/dashboard-data', async (req, res) => {
   try {
     const db = getDb()
-    const [teams, settingsList, phaseData, judges, questions, weights, counts, scoresDetail] = await Promise.all([
-      db.collection('teams').find({}, { projection: { _id: 1, name: 1, description: 1, eje: 1, logo: 1, photo: 1, whatsapp: 1, members: 1, phaseReached: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray(),
+    const phaseData = await getCurrentPhase(db)
+    const imageBase = `${req.protocol}://${req.get('host')}`
+    const [teams, settingsList, judges, questions, weights, counts, scoresDetail] = await Promise.all([
+      db.collection('teams').aggregate([
+        { $sort: { createdAt: 1, _id: 1 } },
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            eje: 1,
+            whatsapp: 1,
+            members: 1,
+            phaseReached: 1,
+            logoUpdatedAt: 1,
+            photoUpdatedAt: 1,
+            hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+            hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+          }
+        }
+      ]).toArray(),
       db.collection('settings').find({ key: { $in: ['voting_active'] } }).toArray(),
-      getCurrentPhase(db),
       db.collection('judges').find().sort({ createdAt: 1, _id: 1 }).toArray(),
       db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
       getWeights(db),
       db.collection('votes').aggregate([{ $match: { phase: { $lte: phaseData } } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }]).toArray(),
-      getScoresDetail(db, phaseData),
+      getScoresDetail(db, phaseData, imageBase),
     ])
 
     const activeTeams = teams.filter(t => isActive(t, phaseData))
@@ -499,7 +603,7 @@ router.get('/dashboard-data', async (req, res) => {
     counts.forEach(c => { countMap[c._id] = c.count })
     const results = {
       results: activeTeams.map(t => ({
-        id: t._id.toString(), name: t.name, logo: t.logo || '', photo: t.photo || '',
+        id: t._id.toString(), name: t.name, logo: '', photo: '',
         description: t.description || '', eje: t.eje || '', members: t.members || [],
         votes: countMap[t._id.toString()] || 0,
       })),
@@ -510,11 +614,7 @@ router.get('/dashboard-data', async (req, res) => {
     const votingActive = settingsList.find(s => s.key === 'voting_active')?.value === 'true'
 
     res.json({
-      teams: teams.map(t => ({
-        id: t._id.toString(), name: t.name, description: t.description || '', eje: t.eje || '',
-        logo: t.logo || '', photo: t.photo || '', whatsapp: t.whatsapp || '',
-        members: t.members || [], phaseReached: t.phaseReached || 1,
-      })),
+      teams: teams.map(t => mapTeamList(t, imageBase)),
       votingActive,
       phase: phaseData,
       results,
@@ -532,11 +632,21 @@ router.get('/dashboard-data', async (req, res) => {
 })
 
 // Detalle de calificaciones: qué juez puso qué nota y comentarios a cada equipo en una fase
-async function getScoresDetail(db, phase) {
+async function getScoresDetail(db, phase, imageBase = '') {
   const [judges, questions, teamsDocs, scores] = await Promise.all([
     db.collection('judges').find().sort({ name: 1 }).toArray(),
     db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
-    db.collection('teams').find({}, { projection: { _id: 1, name: 1, logo: 1, phaseReached: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray(),
+    db.collection('teams').aggregate([
+      { $sort: { createdAt: 1, _id: 1 } },
+      {
+        $project: {
+          name: 1,
+          phaseReached: 1,
+          logoUpdatedAt: 1,
+          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+        }
+      }
+    ]).toArray(),
     db.collection('scores').find({ phase }).toArray(),
   ])
   const teams = teamsDocs.filter(t => isActive(t, phase))
@@ -576,7 +686,7 @@ async function getScoresDetail(db, phase) {
     return {
       id,
       name: t.name,
-      logo: t.logo || '',
+      logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
       scores: teamScores,
     }
   })

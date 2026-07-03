@@ -41,15 +41,38 @@ async function getRubricMax(db) {
   return questions.reduce((s, q) => s + (Number(q.maxScore) || 0), 0)
 }
 
+function imageVersion(value) {
+  return value instanceof Date ? value.getTime() : ''
+}
+
+function imageUrl(base, id, field, hasImage, version) {
+  if (!base || !hasImage) return ''
+  const v = imageVersion(version) || id
+  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
+}
+
 // Equipos activos en una fase: phaseReached >= phase (default 1)
 function isActive(team, phase) {
   return (team.phaseReached || 1) >= phase
 }
 
 // Ranking combinado de una fase, solo equipos activos.
-async function computeRanking(db, phase) {
-  const [teamsRaw, { judgeMax, voteMax }, rubricMax, voteAgg, scoreAgg] = await Promise.all([
-    db.collection('teams').find({}, { projection: { _id: 1, name: 1, logo: 1, eje: 1, phaseReached: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray(),
+async function computeRanking(db, phase, imageBase = '') {
+  const [teams, { judgeMax, voteMax }, rubricMax, voteAgg, scoreAgg] = await Promise.all([
+    db.collection('teams').aggregate([
+      { $sort: { createdAt: 1, _id: 1 } },
+      { $match: { $expr: { $gte: [{ $ifNull: ['$phaseReached', 1] }, phase] } } },
+      {
+        $project: {
+          name: 1,
+          eje: 1,
+          logoUpdatedAt: 1,
+          photoUpdatedAt: 1,
+          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
+          hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+        }
+      }
+    ]).toArray(),
     getWeights(db),
     getRubricMax(db).then(m => m || 20),
     db.collection('votes')
@@ -59,8 +82,6 @@ async function computeRanking(db, phase) {
       .aggregate([{ $match: { phase } }, { $group: { _id: '$teamId', avg: { $avg: '$total' }, n: { $sum: 1 } } }])
       .toArray(),
   ])
-
-  const teams = teamsRaw.filter(t => isActive(t, phase))
   const ids = teams.map(t => t._id.toString())
 
   const votos = {}
@@ -81,7 +102,8 @@ async function computeRanking(db, phase) {
     return {
       id,
       name: t.name,
-      logo: t.logo || '',
+      logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
+      photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
       eje: t.eje || '',
       notaJurados: round2(nota),
       rubricMax,

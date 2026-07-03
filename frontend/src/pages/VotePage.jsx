@@ -335,7 +335,7 @@ export default function VotePage() {
           >
             <div className="h-20 w-20 mx-auto rounded-full overflow-hidden ring-4 ring-gray-100 bg-gray-50 flex items-center justify-center mb-3">
               {pendingTeam.logo || pendingTeam.photo ? (
-                <img src={pendingTeam.logo || pendingTeam.photo} alt={pendingTeam.name} className="w-full h-full object-cover" />
+                <img src={pendingTeam.logo || pendingTeam.photo} alt={pendingTeam.name} loading="lazy" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-3xl font-bold text-gray-300">{pendingTeam.name.charAt(0)}</span>
               )}

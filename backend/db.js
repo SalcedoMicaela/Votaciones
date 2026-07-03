@@ -21,6 +21,12 @@ const client = new MongoClient(uri, {
 let db = null
 let connecting = null
 
+async function ensureIndex(collection, keys, options = {}) {
+  const indexes = await collection.indexes()
+  const exists = indexes.some(i => JSON.stringify(i.key) === JSON.stringify(keys))
+  if (!exists) await collection.createIndex(keys, options)
+}
+
 async function connect() {
   if (db) return db
   if (connecting) return connecting
@@ -32,27 +38,29 @@ async function connect() {
       if (!db) db = client.db(dbName)
     })
     client.on('connectionPoolCleared', () => {
-      console.warn('MongoDB pool cleared — intentando reconectar...')
+      console.warn('MongoDB pool cleared - intentando reconectar...')
     })
 
     const voteIdx = (await db.collection('votes').indexes()).map(i => i.name)
     for (const n of ['ip_1', 'email_1', 'deviceId_1']) {
       if (voteIdx.includes(n)) await db.collection('votes').dropIndex(n)
     }
-    await db.collection('votes').createIndex({ email: 1, phase: 1 }, { unique: true })
-    await db.collection('votes').createIndex({ deviceId: 1, phase: 1 }, { unique: true, sparse: true })
 
-    await db.collection('judges').createIndex({ username: 1 }, { unique: true })
-    await db.collection('judges').createIndex({ token: 1 }, { unique: true, sparse: true })
-    await db.collection('scores').createIndex({ judgeId: 1, teamId: 1, phase: 1 }, { unique: true })
+    await ensureIndex(db.collection('votes'), { email: 1, phase: 1 }, { unique: true })
+    await ensureIndex(db.collection('votes'), { deviceId: 1, phase: 1 }, { unique: true, sparse: true })
+    await ensureIndex(db.collection('votes'), { phase: 1, teamId: 1 })
 
-    await db.collection('teams').createIndex({ uploadToken: 1 }, { unique: true, sparse: true })
-    await db.collection('teams').createIndex({ createdAt: 1, _id: 1 })
-    await db.collection('teams').createIndex({ phaseReached: 1 })
+    await ensureIndex(db.collection('judges'), { username: 1 }, { unique: true })
+    await ensureIndex(db.collection('judges'), { token: 1 }, { unique: true, sparse: true })
+    await ensureIndex(db.collection('scores'), { judgeId: 1, teamId: 1, phase: 1 }, { unique: true })
+    await ensureIndex(db.collection('scores'), { phase: 1, teamId: 1, total: 1 })
 
-    await db.collection('votes').createIndex({ phase: 1, teamId: 1 })
-    await db.collection('scores').createIndex({ phase: 1, teamId: 1, total: 1 })
-    await db.collection('settings').createIndex({ key: 1 }, { unique: true })
+    await ensureIndex(db.collection('teams'), { uploadToken: 1 }, { unique: true, sparse: true })
+    await ensureIndex(db.collection('teams'), { createdAt: 1, _id: 1 })
+    await ensureIndex(db.collection('teams'), { phaseReached: 1 })
+    await ensureIndex(db.collection('teams'), { phaseReached: 1, createdAt: 1 })
+
+    await ensureIndex(db.collection('settings'), { key: 1 }, { unique: true })
 
     await db.collection('settings').updateOne(
       { key: 'current_phase' },

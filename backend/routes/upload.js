@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { getDb } = require('../db')
+const { clearRankingCache } = require('../rankingCache')
 
 // Límite por imagen: ~3.5M caracteres base64 ≈ 2.5 MB ya decodificado
 const MAX_IMAGE_CHARS = 3_500_000
@@ -39,11 +40,13 @@ router.post('/:token', async (req, res) => {
       if (!isValidImage(logo)) return res.status(400).json({ error: 'El logo debe ser una imagen válida' })
       if (logo.length > MAX_IMAGE_CHARS) return res.status(413).json({ error: 'El logo es demasiado grande (máx. ~2.5 MB)' })
       update.logo = logo
+      update.logoUpdatedAt = new Date()
     }
     if (photo !== undefined) {
       if (!isValidImage(photo)) return res.status(400).json({ error: 'La foto debe ser una imagen válida' })
       if (photo.length > MAX_IMAGE_CHARS) return res.status(413).json({ error: 'La foto es demasiado grande (máx. ~2.5 MB)' })
       update.photo = photo
+      update.photoUpdatedAt = new Date()
     }
 
     if (Object.keys(update).length === 0) {
@@ -53,6 +56,7 @@ router.post('/:token', async (req, res) => {
     await getDb().collection('teams').updateOne({ _id: team._id }, { $set: update })
 
     // Notifica a las vistas conectadas para que refresquen las imágenes
+    clearRankingCache()
     req.app.get('io').emit('team:update', { id: team._id.toString() })
 
     res.json({ success: true, logo: update.logo ?? team.logo ?? '', photo: update.photo ?? team.photo ?? '' })

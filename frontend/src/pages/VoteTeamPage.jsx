@@ -115,7 +115,7 @@ export default function VoteTeamPage() {
       <div className="bg-white rounded-2xl shadow-md overflow-hidden">
         <div className="aspect-[16/9] bg-gradient-to-br from-gray-50 to-gray-100 relative">
           {team.photo ? (
-            <img src={team.photo} alt={team.name} className="w-full h-full object-cover" />
+            <img src={team.photo} alt={team.name} loading="lazy" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-200 text-7xl font-bold">
               {team.name.charAt(0).toUpperCase()}
@@ -123,7 +123,7 @@ export default function VoteTeamPage() {
           )}
           {team.logo && (
             <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 h-20 w-20 rounded-full bg-white shadow-lg ring-4 ring-white overflow-hidden flex items-center justify-center">
-              <img src={team.logo} alt="" className="w-full h-full object-contain p-1" />
+              <img src={team.logo} alt="" loading="lazy" className="w-full h-full object-contain p-1" />
             </div>
           )}
         </div>

@@ -77,7 +77,7 @@ export default function LeaderboardPage() {
       <div className={`relative overflow-hidden rounded-3xl shadow-lg ${isBig ? 'w-full aspect-[4/3] sm:aspect-[16/7]' : 'aspect-[4/3]'} group`}>
         {/* Foto de fondo */}
         {hasPhoto ? (
-          <img src={team.photo} alt="" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <img src={team.photo} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-900 to-black" />
         )}
@@ -94,7 +94,7 @@ export default function LeaderboardPage() {
               <span className={`font-bold text-white ${isBig ? 'text-sm' : 'text-xs'}`}>#{place}</span>
             </div>
             {team.logo ? (
-              <img src={team.logo} alt="" className={`${isBig ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-8 h-8'} rounded-full object-contain bg-white/90 p-0.5 shadow-md ring-2 ring-white/50`} />
+              <img src={team.logo} alt="" loading="lazy" className={`${isBig ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-8 h-8'} rounded-full object-contain bg-white/90 p-0.5 shadow-md ring-2 ring-white/50`} />
             ) : (
               <div className={`${isBig ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-8 h-8'} rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center font-bold text-white text-sm ring-2 ring-white/30`}>
                 {(team.name || '?').charAt(0)}
@@ -158,10 +158,10 @@ export default function LeaderboardPage() {
                   <span className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0 ring-1 ring-gray-200">{pos}</span>
                   {team.photo ? (
                     <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 ring-1 ring-gray-200">
-                      <img src={team.photo} alt="" className="w-full h-full object-cover" />
+                      <img src={team.photo} alt="" loading="lazy" className="w-full h-full object-cover" />
                     </div>
                   ) : team.logo ? (
-                    <img src={team.logo} alt="" className="w-9 h-9 rounded-lg object-contain bg-white ring-1 ring-gray-200 flex-shrink-0" />
+                    <img src={team.logo} alt="" loading="lazy" className="w-9 h-9 rounded-lg object-contain bg-white ring-1 ring-gray-200 flex-shrink-0" />
                   ) : (
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center font-bold text-gray-400 text-sm flex-shrink-0">{(team.name || '?').charAt(0)}</div>
                   )}
