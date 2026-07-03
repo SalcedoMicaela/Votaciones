@@ -15,8 +15,10 @@ async function setCurrentPhase(db, n) {
 }
 
 async function getWeights(db) {
-  const j = await db.collection('settings').findOne({ key: 'judgeMax' })
-  const v = await db.collection('settings').findOne({ key: 'voteMax' })
+  const [j, v] = await Promise.all([
+    db.collection('settings').findOne({ key: 'judgeMax' }),
+    db.collection('settings').findOne({ key: 'voteMax' }),
+  ])
   return {
     judgeMax: Math.max(0, Math.min(20, parseFloat(j?.value || '18') || 18)),
     voteMax: Math.max(0, Math.min(20, parseFloat(v?.value || '2') || 2)),
@@ -46,28 +48,25 @@ function isActive(team, phase) {
 
 // Ranking combinado de una fase, solo equipos activos.
 async function computeRanking(db, phase) {
-  const teams = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
-    .filter(t => isActive(t, phase))
+  const [teamsRaw, { judgeMax, voteMax }, rubricMax, voteAgg, scoreAgg] = await Promise.all([
+    db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+    getWeights(db),
+    getRubricMax(db).then(m => m || 20),
+    db.collection('votes')
+      .aggregate([{ $match: { phase: { $lte: phase } } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
+      .toArray(),
+    db.collection('scores')
+      .aggregate([{ $match: { phase } }, { $group: { _id: '$teamId', avg: { $avg: '$total' }, n: { $sum: 1 } } }])
+      .toArray(),
+  ])
+
+  const teams = teamsRaw.filter(t => isActive(t, phase))
   const ids = teams.map(t => t._id.toString())
 
-  const { judgeMax, voteMax } = await getWeights(db)
-  const rubricMax = await getRubricMax(db) || 20
-
-  // votos acumulados de todas las fases (persisten al avanzar)
-  const voteAgg = await db.collection('votes')
-    .aggregate([{ $match: { phase: { $lte: phase } } }, { $group: { _id: '$teamId', n: { $sum: 1 } } }])
-    .toArray()
   const votos = {}
   voteAgg.forEach(v => { votos[v._id] = v.n })
   const maxVotos = ids.length ? Math.max(0, ...ids.map(id => votos[id] || 0)) : 0
 
-  // promedio de notas de jurados por equipo en la fase
-  const scoreAgg = await db.collection('scores')
-    .aggregate([
-      { $match: { phase } },
-      { $group: { _id: '$teamId', avg: { $avg: '$total' }, n: { $sum: 1 } } },
-    ])
-    .toArray()
   const notas = {}
   scoreAgg.forEach(s => { notas[s._id] = { avg: s.avg, n: s.n } })
 

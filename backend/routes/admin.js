@@ -178,8 +178,9 @@ router.delete('/teams/:id', adminAuth, async (req, res) => {
       .collection('teams')
       .deleteOne({ _id: new ObjectId(id) })
     if (deletedCount === 0) return res.status(404).json({ error: 'Team not found' })
-    // Borrar también los votos asociados (equivale al ON DELETE CASCADE)
+    // Borrar votos y scores asociados (equivale al ON DELETE CASCADE)
     await getDb().collection('votes').deleteMany({ teamId: id })
+    await getDb().collection('scores').deleteMany({ teamId: id })
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -431,7 +432,7 @@ router.post('/advance', adminAuth, async (req, res) => {
   }
 })
 
-// Volver a la fase anterior: borra datos de la fase actual y decrementa
+// Volver a la fase anterior: elimina votos, scores de la fase actual y decrementa
 router.post('/regress', adminAuth, async (req, res) => {
   try {
     const db = getDb()
@@ -440,7 +441,9 @@ router.post('/regress', adminAuth, async (req, res) => {
 
     const prevPhase = phase - 1
 
-    // Las calificaciones y votos se conservan entre fases
+    // Eliminar votos y calificaciones de la fase actual
+    const votesDel = await db.collection('votes').deleteMany({ phase })
+    const scoresDel = await db.collection('scores').deleteMany({ phase })
 
     // Equipos que avanzaron en la fase anterior -> los regresa
     await db.collection('teams').updateMany(
@@ -454,23 +457,154 @@ router.post('/regress', adminAuth, async (req, res) => {
 
     req.app.get('io').emit('phase:update', { phase: prevPhase })
     req.app.get('io').emit('voting:toggle', false)
-    res.json({ phase: prevPhase })
+    req.app.get('io').emit('vote:update', { results: [], total: 0 })
+    res.json({ phase: prevPhase, deletedVotes: votesDel.deletedCount, deletedScores: scoresDel.deletedCount })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
 
-// Histórico de ranking por fase
+// Histórico de ranking por fase (todas en paralelo)
 router.get('/ranking/history', async (req, res) => {
   try {
     const db = getDb()
     const currentPhase = await getCurrentPhase(db)
-    const phases = []
-    for (let p = 1; p <= currentPhase; p++) {
-      const ranking = await computeRanking(db, p)
-      phases.push({ phase: p, ranking })
-    }
+    const rankings = await Promise.all(
+      Array.from({ length: currentPhase }, (_, i) => computeRanking(db, i + 1))
+    )
+    const phases = rankings.map((ranking, i) => ({ phase: i + 1, ranking }))
     res.json({ phases })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Datos compuestos para el panel de admin (1 sola petición en lugar de 10)
+router.get('/dashboard-data', async (req, res) => {
+  try {
+    const db = getDb()
+    const [teams, settingsList, phase, results, judges, questions, weights, scoresDetail] = await Promise.all([
+      db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+      db.collection('settings').find({ key: { $in: ['voting_active'] } }).toArray(),
+      getCurrentPhase(db),
+      (async () => {
+        const p = await getCurrentPhase(db)
+        const t = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
+          .filter(team => isActive(team, p))
+        const counts = await db.collection('votes')
+          .aggregate([{ $match: { phase: { $lte: p } } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }])
+          .toArray()
+        const countMap = {}
+        counts.forEach(c => { countMap[c._id] = c.count })
+        const results = t.map(team => ({
+          id: team._id.toString(), name: team.name, logo: team.logo || '', photo: team.photo || '',
+          description: team.description || '', eje: team.eje || '', members: team.members || [],
+          votes: countMap[team._id.toString()] || 0,
+        }))
+        return { results, total: results.reduce((s, r) => s + r.votes, 0), phase: p }
+      })(),
+      db.collection('judges').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+      db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
+      getWeights(db),
+      (async () => {
+        const p = await getCurrentPhase(db)
+        return getScoresDetail(db, p)
+      })(),
+    ])
+
+    const votingActive = settingsList.find(s => s.key === 'voting_active')?.value === 'true'
+
+    res.json({
+      teams: teams.map(t => ({
+        id: t._id.toString(), name: t.name, description: t.description || '', eje: t.eje || '',
+        logo: t.logo || '', photo: t.photo || '', whatsapp: t.whatsapp || '',
+        members: t.members || [], phaseReached: t.phaseReached || 1,
+      })),
+      votingActive,
+      phase,
+      results,
+      judges: judges.map(j => ({ id: j._id.toString(), name: j.name, username: j.username, rawPassword: j.rawPassword || null })),
+      questions: questions.map(q => ({
+        id: q._id.toString(), text: q.text, type: q.type || 'open',
+        options: q.options || [], maxScore: q.maxScore, order: q.order || 0,
+      })),
+      weights,
+      scoresDetail,
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Detalle de calificaciones: qué juez puso qué nota y comentarios a cada equipo en una fase
+async function getScoresDetail(db, phase) {
+  const [judges, questions, teamsDocs, scores] = await Promise.all([
+    db.collection('judges').find().sort({ name: 1 }).toArray(),
+    db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
+    db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+    db.collection('scores').find({ phase }).toArray(),
+  ])
+  const teams = teamsDocs.filter(t => isActive(t, phase))
+
+  const judgeName = {}
+  judges.forEach(j => { judgeName[j._id.toString()] = j.name })
+  const qMap = {}
+  questions.forEach(q => { qMap[q._id.toString()] = q })
+
+  const byTeam = {}
+  scores.forEach(s => {
+    if (!byTeam[s.teamId]) byTeam[s.teamId] = []
+    byTeam[s.teamId].push(s)
+  })
+
+  const teamsOut = teams.map(t => {
+    const id = t._id.toString()
+    const teamScores = (byTeam[id] || []).map(s => ({
+      judgeId: s.judgeId,
+      judgeName: judgeName[s.judgeId] || 'Desconocido',
+      total: s.total,
+      updatedAt: s.updatedAt || null,
+      answers: s.answers.map(a => {
+        const q = qMap[a.questionId]
+        return {
+          questionId: a.questionId,
+          questionText: q?.text || '',
+          type: q?.type || 'text',
+          maxScore: q?.maxScore || 0,
+          options: q?.options || [],
+          points: a.points !== undefined ? a.points : null,
+          text: a.text || null,
+        }
+      }),
+    }))
+    teamScores.sort((a, b) => a.judgeName.localeCompare(b.judgeName))
+    return {
+      id,
+      name: t.name,
+      logo: t.logo || '',
+      scores: teamScores,
+    }
+  })
+
+  return {
+    judges: judges.map(j => ({ id: j._id.toString(), name: j.name })),
+    questions: questions.map(q => ({
+      id: q._id.toString(),
+      text: q.text,
+      type: q.type,
+      maxScore: q.maxScore,
+      options: q.options || [],
+    })),
+    teams: teamsOut,
+  }
+}
+
+router.get('/scores-detail', async (req, res) => {
+  try {
+    const db = getDb()
+    const phase = req.query.phase ? parseInt(req.query.phase, 10) : await getCurrentPhase(db)
+    const data = await getScoresDetail(db, phase)
+    res.json({ phase, ...data })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

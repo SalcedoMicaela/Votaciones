@@ -156,7 +156,8 @@ async function run() {
   if (count > 0 && force) {
     await teams.deleteMany({})
     await db.collection('votes').deleteMany({})
-    console.log('Equipos y votos anteriores eliminados (--force).')
+    await db.collection('scores').deleteMany({})
+    console.log('Equipos, votos y calificaciones anteriores eliminados (--force).')
   }
 
   // Mapa de rosters (Hoja 2) por nombre normalizado
