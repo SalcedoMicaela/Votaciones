@@ -43,7 +43,7 @@ async function computeResults(db) {
     .filter(t => isActive(t, phase))
   const counts = await db
     .collection('votes')
-    .aggregate([{ $match: { phase } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }])
+    .aggregate([{ $match: { phase: { $lte: phase } } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }])
     .toArray()
 
   const countMap = {}
