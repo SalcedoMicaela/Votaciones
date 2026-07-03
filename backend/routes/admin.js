@@ -483,34 +483,29 @@ router.get('/ranking/history', async (req, res) => {
 router.get('/dashboard-data', async (req, res) => {
   try {
     const db = getDb()
-    const [teams, settingsList, phase, results, judges, questions, weights, scoresDetail] = await Promise.all([
-      db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+    const [teams, settingsList, phaseData, judges, questions, weights, counts, scoresDetail] = await Promise.all([
+      db.collection('teams').find({}, { projection: { _id: 1, name: 1, description: 1, eje: 1, logo: 1, photo: 1, whatsapp: 1, members: 1, phaseReached: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray(),
       db.collection('settings').find({ key: { $in: ['voting_active'] } }).toArray(),
       getCurrentPhase(db),
-      (async () => {
-        const p = await getCurrentPhase(db)
-        const t = (await db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray())
-          .filter(team => isActive(team, p))
-        const counts = await db.collection('votes')
-          .aggregate([{ $match: { phase: { $lte: p } } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }])
-          .toArray()
-        const countMap = {}
-        counts.forEach(c => { countMap[c._id] = c.count })
-        const results = t.map(team => ({
-          id: team._id.toString(), name: team.name, logo: team.logo || '', photo: team.photo || '',
-          description: team.description || '', eje: team.eje || '', members: team.members || [],
-          votes: countMap[team._id.toString()] || 0,
-        }))
-        return { results, total: results.reduce((s, r) => s + r.votes, 0), phase: p }
-      })(),
       db.collection('judges').find().sort({ createdAt: 1, _id: 1 }).toArray(),
       db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
       getWeights(db),
-      (async () => {
-        const p = await getCurrentPhase(db)
-        return getScoresDetail(db, p)
-      })(),
+      db.collection('votes').aggregate([{ $match: { phase: { $lte: phaseData } } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }]).toArray(),
+      getScoresDetail(db, phaseData),
     ])
+
+    const activeTeams = teams.filter(t => isActive(t, phaseData))
+    const countMap = {}
+    counts.forEach(c => { countMap[c._id] = c.count })
+    const results = {
+      results: activeTeams.map(t => ({
+        id: t._id.toString(), name: t.name, logo: t.logo || '', photo: t.photo || '',
+        description: t.description || '', eje: t.eje || '', members: t.members || [],
+        votes: countMap[t._id.toString()] || 0,
+      })),
+      total: activeTeams.reduce((s, t) => s + (countMap[t._id.toString()] || 0), 0),
+      phase: phaseData,
+    }
 
     const votingActive = settingsList.find(s => s.key === 'voting_active')?.value === 'true'
 
@@ -521,7 +516,7 @@ router.get('/dashboard-data', async (req, res) => {
         members: t.members || [], phaseReached: t.phaseReached || 1,
       })),
       votingActive,
-      phase,
+      phase: phaseData,
       results,
       judges: judges.map(j => ({ id: j._id.toString(), name: j.name, username: j.username, rawPassword: j.rawPassword || null })),
       questions: questions.map(q => ({
@@ -541,7 +536,7 @@ async function getScoresDetail(db, phase) {
   const [judges, questions, teamsDocs, scores] = await Promise.all([
     db.collection('judges').find().sort({ name: 1 }).toArray(),
     db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
-    db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+    db.collection('teams').find({}, { projection: { _id: 1, name: 1, logo: 1, phaseReached: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray(),
     db.collection('scores').find({ phase }).toArray(),
   ])
   const teams = teamsDocs.filter(t => isActive(t, phase))

@@ -49,7 +49,7 @@ function isActive(team, phase) {
 // Ranking combinado de una fase, solo equipos activos.
 async function computeRanking(db, phase) {
   const [teamsRaw, { judgeMax, voteMax }, rubricMax, voteAgg, scoreAgg] = await Promise.all([
-    db.collection('teams').find().sort({ createdAt: 1, _id: 1 }).toArray(),
+    db.collection('teams').find({}, { projection: { _id: 1, name: 1, logo: 1, eje: 1, phaseReached: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray(),
     getWeights(db),
     getRubricMax(db).then(m => m || 20),
     db.collection('votes')
