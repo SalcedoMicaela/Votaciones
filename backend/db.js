@@ -1,13 +1,17 @@
 const { MongoClient } = require('mongodb')
 const { hashPassword } = require('./auth')
 
+function cleanEnv(value) {
+  return String(value || '').trim().replace(/^['"]|['"]$/g, '')
+}
+
 const uri =
-  process.env.MONGO ||
-  process.env.MONGODB_URI ||
+  cleanEnv(process.env.MONGO) ||
+  cleanEnv(process.env.MONGODB_URI) ||
   'mongodb://localhost:27017'
 
 // La base de datos siempre apunta a votaciones-empremd (se puede sobreescribir con MONGO_DB)
-const dbName = process.env.MONGO_DB || 'votaciones-empremd'
+const dbName = cleanEnv(process.env.MONGO_DB) || 'votaciones-empremd'
 
 const client = new MongoClient(uri, {
   serverSelectionTimeoutMS: 10000,

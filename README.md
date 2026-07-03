@@ -187,24 +187,119 @@ Secciones:
 
 ## Despliegue
 
-### Backend (Render)
+### Backend (Google Cloud Run)
 
-```yaml
-# render.yaml incluido en el proyecto
-services:
-  - type: web
-    name: voting-system-backend
-    env: node
-    buildCommand: npm install
-    startCommand: node server.js
+El backend está preparado para desplegarse automáticamente en Cloud Run con Cloud Build.
+
+Archivos incluidos:
+- `backend/Dockerfile`
+- `backend/.dockerignore`
+- `cloudbuild.yaml`
+
+Configuración sugerida del trigger en Google Cloud Build:
+- Repositorio: este repo de GitHub
+- Rama: `^main$`
+- Configuración: `cloudbuild.yaml`
+- Ubicación del archivo: `/cloudbuild.yaml`
+
+APIs necesarias en Google Cloud:
+
+```bash
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  run.googleapis.com \
+  artifactregistry.googleapis.com \
+  secretmanager.googleapis.com
 ```
 
-Variables de entorno secretas: `MONGO`, `MONGO_DB`, `ADMIN_PASSWORD`
+Valores por defecto del despliegue:
+- Región: `us-central1`
+- Servicio Cloud Run: `votaciones-backend`
+- Artifact Registry: `votaciones`
+- Imagen: `backend`
+
+Se pueden cambiar editando las sustituciones de `cloudbuild.yaml`:
+
+```yaml
+substitutions:
+  _REGION: us-central1
+  _SERVICE: votaciones-backend
+  _REPOSITORY: votaciones
+  _IMAGE: backend
+  _MONGO_DB: votaciones-empremd
+  _MONGO_SECRET: MONGO
+  _ADMIN_PASSWORD_SECRET: ADMIN_PASSWORD
+```
+
+Variables requeridas en Cloud Run:
+- `MONGO`
+- `MONGO_DB`
+- `ADMIN_PASSWORD`
+- `DATABASE_URL` solo si se usa en una integración futura
+
+No guardar secretos en el repositorio. El `cloudbuild.yaml` está configurado para tomar `MONGO` y `ADMIN_PASSWORD` desde Secret Manager, con secretos llamados `MONGO` y `ADMIN_PASSWORD`.
+
+Crear secretos una sola vez en Google Cloud:
+
+```bash
+printf '<mongo-uri>' | gcloud secrets create MONGO \
+  --replication-policy=automatic \
+  --data-file=-
+
+printf '<admin-password>' | gcloud secrets create ADMIN_PASSWORD \
+  --replication-policy=automatic \
+  --data-file=-
+```
+
+Dar permiso de lectura de secretos al service account runtime de Cloud Run. Si usa el service account por defecto de Compute Engine:
+
+```bash
+PROJECT_ID="$(gcloud config get-value project)"
+PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+
+gcloud secrets add-iam-policy-binding MONGO \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+gcloud secrets add-iam-policy-binding ADMIN_PASSWORD \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+El trigger de Cloud Build debe tener permisos para Cloud Run, Artifact Registry y Secret Manager. Normalmente el service account de Cloud Build necesita:
+- `roles/run.admin`
+- `roles/artifactregistry.admin`
+- `roles/iam.serviceAccountUser`
+- `roles/secretmanager.secretAccessor`
+
+Ejemplo con variables de entorno en Cloud Run:
+
+```bash
+gcloud run services update votaciones-backend \
+  --region us-central1 \
+  --update-env-vars MONGO="<mongo-uri>",MONGO_DB="votaciones-empremd",ADMIN_PASSWORD="<admin-password>"
+```
+
+Ejemplo manual alternativo con Secret Manager:
+
+```bash
+gcloud secrets create MONGO --replication-policy=automatic
+gcloud secrets create ADMIN_PASSWORD --replication-policy=automatic
+gcloud secrets versions add MONGO --data-file=-
+gcloud secrets versions add ADMIN_PASSWORD --data-file=-
+
+gcloud run services update votaciones-backend \
+  --region us-central1 \
+  --update-secrets MONGO=MONGO:latest,ADMIN_PASSWORD=ADMIN_PASSWORD:latest \
+  --update-env-vars MONGO_DB="votaciones-empremd"
+```
+
+El backend expone `/api/health` para comprobar el despliegue.
 
 ### Frontend (Vercel)
 
 Conectar repositorio y configurar:
-- `VITE_API_URL` = URL del backend en Render
+- `VITE_API_URL` = URL del backend en Cloud Run
 - `VITE_FRONTEND_URL` = URL del frontend en Vercel
 
 ---

@@ -1,0 +1,64 @@
+substitutions:
+  _REGION: us-central1
+  _SERVICE: votaciones-backend
+  _REPOSITORY: votaciones
+  _IMAGE: backend
+  _MONGO_DB: votaciones-empremd
+  _MONGO_SECRET: MONGO
+  _ADMIN_PASSWORD_SECRET: ADMIN_PASSWORD
+
+steps:
+  - id: ensure-artifact-registry
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud artifacts repositories describe "${_REPOSITORY}" \
+          --location="${_REGION}" >/dev/null 2>&1 || \
+        gcloud artifacts repositories create "${_REPOSITORY}" \
+          --repository-format=docker \
+          --location="${_REGION}" \
+          --description="Docker images for Votaciones"
+
+  - id: build-backend-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - backend/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest
+      - backend
+
+  - id: push-backend-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}
+
+  - id: deploy-cloud-run
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --memory=512Mi
+      - --cpu=1
+      - --max-instances=10
+      - --timeout=300
+      - --update-env-vars=NODE_ENV=production,MONGO_DB=${_MONGO_DB}
+      - --update-secrets=MONGO=${_MONGO_SECRET}:latest,ADMIN_PASSWORD=${_ADMIN_PASSWORD_SECRET}:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest
