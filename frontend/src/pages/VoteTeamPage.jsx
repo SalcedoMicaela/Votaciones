@@ -23,6 +23,7 @@ export default function VoteTeamPage() {
   const [team, setTeam] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [votingActive, setVotingActive] = useState(false)
+  const [showPanel, setShowPanel] = useState(true)
   const [hasVoted, setHasVoted] = useState(false)
   const [votedTeamId, setVotedTeamId] = useState(null)
   const [email, setEmail] = useState(() => localStorage.getItem('voterEmail') || '')
@@ -35,7 +36,8 @@ export default function VoteTeamPage() {
   useEffect(() => {
     load()
     socket.on('voting:toggle', setVotingActive)
-    return () => socket.off('voting:toggle')
+    socket.on('panel:toggle', setShowPanel)
+    return () => { socket.off('voting:toggle'); socket.off('panel:toggle') }
   }, [teamId])
 
   async function load() {
@@ -48,6 +50,7 @@ export default function VoteTeamPage() {
       if (!t) setNotFound(true)
       else setTeam(t)
       setVotingActive(statusRes.data.votingActive)
+      setShowPanel(statusRes.data.showPanel !== false)
       const saved = localStorage.getItem('voterEmail') || ''
       if (EMAIL_RE.test(saved)) {
         const c = await axios.get(`${API}/api/vote/check`, { params: { email: saved.toLowerCase() } })
@@ -157,6 +160,10 @@ export default function VoteTeamPage() {
           ) : votedOther ? (
             <div className="py-3 rounded-xl bg-yellow-50 text-yellow-700 text-sm font-medium ring-1 ring-yellow-200">
               Ya votaste por otro equipo con este correo.
+            </div>
+          ) : !showPanel ? (
+            <div className="py-3 rounded-xl bg-gray-50 text-gray-500 text-sm font-medium ring-1 ring-gray-200">
+              La votación estará disponible próximamente.
             </div>
           ) : !votingActive ? (
             <div className="py-3 rounded-xl bg-yellow-50 text-yellow-700 text-sm font-medium ring-1 ring-yellow-200">

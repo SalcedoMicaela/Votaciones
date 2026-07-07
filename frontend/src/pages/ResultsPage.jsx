@@ -15,25 +15,32 @@ export default function ResultsPage() {
   const [phases, setPhases] = useState([])
   const [selectedPhase, setSelectedPhase] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showPanel, setShowPanel] = useState(true)
 
   useEffect(() => {
     loadHistory()
     socket.on('vote:update', loadHistory)
     socket.on('score:update', loadHistory)
     socket.on('phase:update', loadHistory)
+    socket.on('panel:toggle', setShowPanel)
     return () => {
       socket.off('vote:update', loadHistory)
       socket.off('score:update', loadHistory)
       socket.off('phase:update', loadHistory)
+      socket.off('panel:toggle', setShowPanel)
     }
   }, [])
 
   async function loadHistory() {
     try {
-      const res = await axios.get(`${API}/api/admin/ranking/history`)
-      setPhases(res.data.phases)
-      if (!selectedPhase && res.data.phases.length > 0) {
-        setSelectedPhase(res.data.phases[res.data.phases.length - 1].phase)
+      const [history, status] = await Promise.all([
+        axios.get(`${API}/api/admin/ranking/history`),
+        axios.get(`${API}/api/admin/status`),
+      ])
+      setPhases(history.data.phases)
+      setShowPanel(status.data.showPanel !== false)
+      if (!selectedPhase && history.data.phases.length > 0) {
+        setSelectedPhase(history.data.phases[history.data.phases.length - 1].phase)
       }
     } catch (err) {
       console.error(err)
@@ -43,14 +50,23 @@ export default function ResultsPage() {
   }
 
   const current = phases.find(p => p.phase === selectedPhase)
-  const sorted = current ? [...current.ranking].sort((a, b) => b.final - a.final) : []
-  const maxFinal = sorted.length > 0 ? sorted[0].final : 0
+  const sorted = current ? [...current.ranking].sort((a, b) => b.votos - a.votos) : []
+  const maxVotos = sorted.length > 0 ? sorted[0].votos : 0
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center mt-20">
         <div className="w-12 h-12 border-4 border-espe-200 border-t-espe-600 rounded-full animate-spin mb-4" />
         <p className="text-gray-400">Cargando...</p>
+      </div>
+    )
+  }
+
+  if (!showPanel) {
+    return (
+      <div className="max-w-md mx-auto mt-16 text-center bg-white p-8 rounded-2xl shadow-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">Resultados</h1>
+        <p className="text-gray-500">Los resultados se publicarán cuando el administrador los habilite.</p>
       </div>
     )
   }
@@ -109,14 +125,14 @@ export default function ResultsPage() {
           {sorted.length >= 3 && (
             <div className="flex flex-col sm:flex-row items-center sm:items-end justify-center gap-4 mb-10 pt-6 sm:pt-2">
               <div className="w-full sm:flex-1 sm:max-w-[200px] order-2 sm:order-1">
-                <PodiumCard team={sorted[1]} medal={MEDALS[1]} size="sm" maxFinal={maxFinal} />
+                <PodiumCard team={sorted[1]} medal={MEDALS[1]} size="sm" maxVotos={maxVotos} />
               </div>
               <div className="w-full sm:flex-1 sm:max-w-[240px] z-10 relative order-1 sm:order-2">
                 <div className="absolute -top-5 left-1/2 -translate-x-1/2 select-none"><Crown className="w-7 h-7 text-yellow-500 fill-yellow-400" /></div>
-                <PodiumCard team={sorted[0]} medal={MEDALS[0]} size="lg" maxFinal={maxFinal} />
+                <PodiumCard team={sorted[0]} medal={MEDALS[0]} size="lg" maxVotos={maxVotos} />
               </div>
               <div className="w-full sm:flex-1 sm:max-w-[200px] order-3">
-                <PodiumCard team={sorted[2]} medal={MEDALS[2]} size="sm" maxFinal={maxFinal} />
+                <PodiumCard team={sorted[2]} medal={MEDALS[2]} size="sm" maxVotos={maxVotos} />
               </div>
             </div>
           )}
@@ -124,7 +140,7 @@ export default function ResultsPage() {
           {sorted.length > 0 && sorted.length < 3 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
               {sorted.map((team, i) => (
-                <PodiumCard key={team.id} team={team} medal={MEDALS[i]} size="md" maxFinal={maxFinal} />
+                <PodiumCard key={team.id} team={team} medal={MEDALS[i]} size="md" maxVotos={maxVotos} />
               ))}
             </div>
           )}
@@ -137,9 +153,7 @@ export default function ResultsPage() {
                   <tr className="bg-gray-50 border-b border-gray-100">
                     <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">#</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Equipo</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Nota jurado</th>
                     <th className="text-right px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Votos</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Puntaje final</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -156,31 +170,22 @@ export default function ResultsPage() {
                           <span className="font-medium text-gray-700 truncate">{team.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-600">{team.notaJurados} / {team.rubricMax}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{team.votos}</td>
-                      <td className="px-4 py-3 text-right font-bold text-espe-700">{team.final}</td>
+                      <td className="px-4 py-3 text-right font-bold text-espe-700">{team.votos}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Indicador de ponderacion */}
-          {current.ranking.length > 0 && (
-            <p className="text-center text-xs text-gray-400 mt-4">
-              Ponderación: jurado <strong>{current.ranking[0].judgeMax}</strong> · votos <strong>{current.ranking[0].voteMax}</strong>
-            </p>
-          )}
         </>
       )}
     </div>
   )
 }
 
-function PodiumCard({ team, medal, size, maxFinal }) {
+function PodiumCard({ team, medal, size, maxVotos }) {
   const imgSize = size === 'lg' ? 'h-20 w-20' : 'h-14 w-14'
-  const pct = maxFinal > 0 ? ((team.final / maxFinal) * 100) : 0
+  const pct = maxVotos > 0 ? ((team.votos / maxVotos) * 100) : 0
   return (
     <div className={`rounded-2xl border-2 p-4 sm:p-6 text-center transition-all duration-700 ${medal.bg} ${size === 'lg' ? 'scale-100' : 'scale-90 sm:scale-95'}`}>
       <div className="mb-1 flex justify-center">
@@ -196,8 +201,8 @@ function PodiumCard({ team, medal, size, maxFinal }) {
       )}
       <h3 className={`font-extrabold ${size === 'lg' ? 'text-2xl' : 'text-lg'} mb-1 truncate px-2`}>{team.name}</h3>
       <div className="flex items-center justify-center gap-2 text-sm mb-3">
-        <span className="font-bold text-espe-700">{team.final}</span>
-        <span className="text-gray-400">pts</span>
+        <span className="font-bold text-espe-700">{team.votos}</span>
+        <span className="text-gray-400">votos</span>
       </div>
       <div className="w-full bg-gray-200/70 rounded-full overflow-hidden shadow-inner">
         <div

@@ -294,8 +294,31 @@ router.post('/toggle', adminAuth, async (req, res) => {
 
 router.get('/status', async (req, res) => {
   try {
-    const settings = await getDb().collection('settings').findOne({ key: 'voting_active' })
-    res.json({ votingActive: settings?.value === 'true' })
+    const [voting, panel] = await Promise.all([
+      getDb().collection('settings').findOne({ key: 'voting_active' }),
+      getDb().collection('settings').findOne({ key: 'show_panel' }),
+    ])
+    res.json({
+      votingActive: voting?.value === 'true',
+      showPanel: panel?.value !== 'false',
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/panel-toggle', adminAuth, async (req, res) => {
+  try {
+    const settings = await getDb().collection('settings').findOne({ key: 'show_panel' })
+    const current = settings?.value !== 'false'
+    const newValue = current ? 'false' : 'true'
+    await getDb().collection('settings').updateOne(
+      { key: 'show_panel' },
+      { $set: { value: newValue } },
+      { upsert: true }
+    )
+    req.app.get('io').emit('panel:toggle', newValue === 'true')
+    res.json({ showPanel: newValue === 'true' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -600,7 +623,7 @@ router.get('/dashboard-data', async (req, res) => {
           }
         }
       ]).toArray(),
-      db.collection('settings').find({ key: { $in: ['voting_active'] } }).toArray(),
+      db.collection('settings').find({ key: { $in: ['voting_active', 'show_panel'] } }).toArray(),
       db.collection('judges').find().sort({ createdAt: 1, _id: 1 }).toArray(),
       db.collection('questions').find().sort({ order: 1, _id: 1 }).toArray(),
       getWeights(db),
@@ -622,10 +645,12 @@ router.get('/dashboard-data', async (req, res) => {
     }
 
     const votingActive = settingsList.find(s => s.key === 'voting_active')?.value === 'true'
+    const showPanel = settingsList.find(s => s.key === 'show_panel')?.value !== 'false'
 
     res.json({
       teams: teams.map(t => mapTeamList(t, imageBase)),
       votingActive,
+      showPanel,
       phase: phaseData,
       results,
       judges: judges.map(j => ({ id: j._id.toString(), name: j.name, username: j.username, rawPassword: j.rawPassword || null })),

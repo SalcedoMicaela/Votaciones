@@ -21,6 +21,7 @@ function getDeviceId() {
 export default function VotePage() {
   const [teams, setTeams] = useState([])
   const [votingActive, setVotingActive] = useState(false)
+  const [showPanel, setShowPanel] = useState(true)
   const [hasVoted, setHasVoted] = useState(false)
   const [votedTeamId, setVotedTeamId] = useState(null)
   const [email, setEmail] = useState(() => localStorage.getItem('voterEmail') || '')
@@ -38,10 +39,12 @@ export default function VotePage() {
   useEffect(() => {
     loadData()
     socket.on('voting:toggle', active => setVotingActive(active))
+    socket.on('panel:toggle', active => setShowPanel(active))
     socket.on('team:update', loadTeams)
     socket.on('phase:update', loadData)
     return () => {
       socket.off('voting:toggle')
+      socket.off('panel:toggle')
       socket.off('team:update', loadTeams)
       socket.off('phase:update', loadData)
     }
@@ -68,6 +71,7 @@ export default function VotePage() {
       setTeams(teamsRes.data.teams)
       setPhase(teamsRes.data.phase)
       setVotingActive(statusRes.data.votingActive)
+      setShowPanel(statusRes.data.showPanel !== false)
       if (deviceRes.data.hasVoted) {
         setHasVoted(true)
         setVotedTeamId(deviceRes.data.teamId)
@@ -297,6 +301,7 @@ export default function VotePage() {
               onVote={requestVote}
               disabled={!canVote}
               voted={votedTeamId === team.id}
+              hideVoteButton={!showPanel}
             />
           </div>
         ))}

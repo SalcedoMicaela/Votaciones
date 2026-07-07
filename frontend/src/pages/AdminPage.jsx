@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [links, setLinks] = useState({})
   const [results, setResults] = useState({ results: [], total: 0 })
   const [votingActive, setVotingActive] = useState(false)
+  const [showPanel, setShowPanel] = useState(true)
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [showQR, setShowQR] = useState(false)
@@ -79,15 +80,18 @@ export default function AdminPage() {
     if (!authenticated) return
     const onVote = d => { setResults(d); loadRanking(); loadScores() }
     const onToggle = a => setVotingActive(a)
+    const onPanel = a => setShowPanel(a)
     const onScore = () => { loadRanking(); loadScores() }
     const onPhase = () => { loadPhaseAndRanking(); loadScores() }
     socket.on('vote:update', onVote)
     socket.on('voting:toggle', onToggle)
+    socket.on('panel:toggle', onPanel)
     socket.on('score:update', onScore)
     socket.on('phase:update', onPhase)
     return () => {
       socket.off('vote:update', onVote)
       socket.off('voting:toggle', onToggle)
+      socket.off('panel:toggle', onPanel)
       socket.off('score:update', onScore)
       socket.off('phase:update', onPhase)
     }
@@ -106,6 +110,7 @@ export default function AdminPage() {
       const d = res.data
       setTeams(d.teams)
       setVotingActive(d.votingActive)
+      setShowPanel(d.showPanel !== false)
       setPhaseNum(d.phase)
       setRankingPhase(d.phase)
       setResults(d.results)
@@ -135,6 +140,12 @@ export default function AdminPage() {
   }
   async function loadStatus() {
     try { setVotingActive((await axios.get(`${API}/api/admin/status`)).data.votingActive) } catch (err) { console.error(err) }
+  }
+
+  function chunks(arr, size) {
+    const result = []
+    for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size))
+    return result
   }
 
   function uploadUrl(id) {
@@ -261,6 +272,13 @@ export default function AdminPage() {
     try {
       const res = await axios.post(`${API}/api/admin/toggle`, {}, authHeaders())
       setVotingActive(res.data.votingActive)
+    } catch (err) { console.error(err) }
+  }
+
+  async function panelToggle() {
+    try {
+      const res = await axios.post(`${API}/api/admin/panel-toggle`, {}, authHeaders())
+      setShowPanel(res.data.showPanel)
     } catch (err) { console.error(err) }
   }
 
@@ -627,27 +645,60 @@ export default function AdminPage() {
           {section === 'votacion' && (
             <div className="space-y-6">
               <h1 className="text-2xl font-bold text-gray-800">Control de votación</h1>
+
+              {/* Mostrar panel de votación */}
               <div className="bg-white p-6 rounded-2xl shadow-sm">
-                <p className="text-sm text-gray-500 mb-4">
-                  Activa la votación para que las personas puedan votar. Mientras esté cerrada, nadie puede emitir su voto.
-                </p>
-                <div className="flex flex-wrap items-center gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-semibold text-gray-800">Mostrar panel de votación</h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {showPanel
+                        ? 'Los botones de votar y la página de resultados están visibles para los usuarios'
+                        : 'Los botones de votar se ocultan y la página de resultados no está disponible'}
+                    </p>
+                  </div>
                   <button
-                    onClick={toggleVoting}
-                    className={`px-6 py-3 rounded-xl font-bold text-white transition-colors ${
-                      votingActive ? 'bg-red-500 hover:bg-red-600' : 'bg-espe-600 hover:bg-espe-700'
+                    onClick={panelToggle}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none ${
+                      showPanel ? 'bg-espe-600' : 'bg-gray-300'
                     }`}
                   >
-                    {votingActive ? 'Desactivar votación' : 'Activar votación'}
+                    <span
+                      className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-sm transition-transform ${
+                        showPanel ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
                   </button>
-                  <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
-                    votingActive ? 'bg-espe-50 text-espe-700' : 'bg-red-50 text-red-600'
-                  }`}>
-                    <span className={`h-2 w-2 rounded-full ${votingActive ? 'bg-espe-500' : 'bg-red-500'}`} />
-                    {votingActive ? 'Votación abierta' : 'Votación cerrada'}
-                  </span>
                 </div>
-                <p className="mt-4 text-sm text-gray-500">Votos registrados hasta ahora: <span className="font-bold text-espe-700">{votos}</span></p>
+              </div>
+
+              {/* Activar/desactivar votación */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h2 className="font-semibold text-gray-800">Estado de la votación</h2>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Abre o cierra la votación. Mientras esté cerrada, nadie puede enviar su voto.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={toggleVoting}
+                      className={`px-5 py-2.5 rounded-xl font-bold text-white transition-colors ${
+                        votingActive ? 'bg-red-500 hover:bg-red-600' : 'bg-espe-600 hover:bg-espe-700'
+                      }`}
+                    >
+                      {votingActive ? 'Cerrar votación' : 'Abrir votación'}
+                    </button>
+                    <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                      votingActive ? 'bg-espe-50 text-espe-700' : 'bg-red-50 text-red-600'
+                    }`}>
+                      <span className={`h-2 w-2 rounded-full ${votingActive ? 'bg-espe-500' : 'bg-red-500'}`} />
+                      {votingActive ? 'Abierta' : 'Cerrada'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">Votos registrados: <span className="font-bold text-espe-700">{votos}</span></p>
               </div>
 
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100">
@@ -1252,8 +1303,8 @@ export default function AdminPage() {
                                     <td key={q.id} className="text-center px-2 py-2">
                                       {q.type === 'text' ? (
                                         ans?.text ? (
-                                          <span className="text-[11px] text-gray-400 italic cursor-help" title={ans.text}>
-                                            &ldquo;{ans.text.length > 18 ? ans.text.slice(0, 18) + '…' : ans.text}&rdquo;
+                                          <span className="text-[11px] text-gray-500 italic max-w-[180px] inline-block leading-relaxed" title={ans.text}>
+                                            &ldquo;{ans.text}&rdquo;
                                           </span>
                                         ) : (
                                           <span className="text-gray-300">—</span>
@@ -1321,7 +1372,7 @@ export default function AdminPage() {
       </div>
 
       {/* Hoja imprimible (solo al imprimir) */}
-      <style>{`@media print{.print-grid-2>*:nth-child(2n){page-break-after:always}}`}</style>
+      <style>{`@media print{@page{margin:0.5in}.print-page{page-break-after:always;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:0.4in 0.3in;box-sizing:border-box}.print-page:last-child{page-break-after:auto}.print-grid-4{display:grid;grid-template-columns:1fr 1fr;gap:0.3in;width:100%;max-width:7in}}`}</style>
       <div className="hidden print:block">
         {printMode === 'judge' ? (
           <div className="flex flex-col items-center justify-center min-h-screen -mt-20">
@@ -1342,49 +1393,66 @@ export default function AdminPage() {
             <p className="mt-6 text-sm text-gray-400">{FRONTEND_URL}</p>
           </div>
         ) : printMode === 'judge-team' ? (
-          <div className="py-8">
-            <h2 className="text-center text-3xl font-bold mb-2">QR calificación por equipo (jurado)</h2>
-            <p className="text-center text-sm text-gray-500 mb-8">Cada jurado escanea el QR del equipo que debe calificar</p>
-            <div className="grid grid-cols-2 gap-6 print-grid-2">
-              {teams.map(team => (
-                <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 bg-white shadow-sm">
-                  {(team.logo || team.photo) && (
-                    <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
-                  )}
-                  <p className="font-semibold text-sm mb-3 truncate">{team.name}</p>
-                  <QRCode value={`${FRONTEND_URL}/jurado/${team.id}`} size={140} className="mx-auto" />
+          <>
+            {chunks(teams, 4).map((batch, i) => (
+              <div key={i} className="print-page">
+                {i === 0 && (
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">QR calificación por equipo</h2>
+                    <p className="text-xs text-gray-500">Cada jurado escanea el QR del equipo que debe calificar</p>
+                  </div>
+                )}
+                <div className="print-grid-4">
+                  {batch.map(team => (
+                    <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 bg-white shadow-sm flex flex-col items-center justify-center" style={{ minHeight: '2.2in' }}>
+                      {(team.logo || team.photo) && (
+                        <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-9 w-9 object-contain mx-auto mb-2 rounded-full bg-gray-50 ring-1 ring-purple-100" />
+                      )}
+                      <p className="font-semibold text-sm mb-2 truncate max-w-full px-2">{team.name}</p>
+                      <QRCode value={`${FRONTEND_URL}/jurado/${team.id}`} size={110} className="mx-auto" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            ))}
+          </>
         ) : (
-          <div className="py-8">
-            <h2 className="text-center text-3xl font-bold mb-2">
-              {printMode === 'vote' ? 'QR de votación por equipo' : 'QR de subida de imágenes'}
-            </h2>
-            <p className="text-center text-sm text-gray-500 mb-8">
-              {printMode === 'vote'
-                ? 'Cada persona escanea el QR de un equipo para votar directo por él'
-                : 'Cada equipo escanea su QR para subir su logo y foto'}
-            </p>
-            <div className="grid grid-cols-2 gap-6 print-grid-2">
-              {teams.map(team => (
-                <div key={team.id} className="text-center border border-gray-300 rounded-xl p-4 bg-white shadow-sm">
-                  {(team.logo || team.photo) && (
-                    <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-10 w-10 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
-                  )}
-                  <p className="font-semibold text-sm mb-3 truncate">{team.name}</p>
-                  {printMode === 'vote' ? (
-                    <QRCode value={voteUrl(team.id)} size={140} className="mx-auto" />
-                  ) : links[team.id]?.token ? (
-                    <QRCode value={uploadUrl(team.id)} size={140} className="mx-auto" />
-                  ) : (
-                    <p className="text-xs text-gray-400 py-4">sin link</p>
-                  )}
+          <>
+            {chunks(teams, 4).map((batch, i) => (
+              <div key={i} className="print-page">
+                {i === 0 && (
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">
+                      {printMode === 'vote' ? 'QR voto directo por equipo' : 'QR subida de imágenes'}
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      {printMode === 'vote'
+                        ? 'Cada persona escanea el QR de un equipo para votar directo por él'
+                        : 'Cada equipo escanea su QR para subir su logo y foto'}
+                    </p>
+                  </div>
+                )}
+                <div className="print-grid-4">
+                  {batch.map(team => {
+                    const qrValue = printMode === 'vote' ? voteUrl(team.id) : (links[team.id]?.token ? uploadUrl(team.id) : null)
+                    return (
+                      <div key={team.id} className="text-center border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm flex flex-col items-center justify-center" style={{ minHeight: '2.2in' }}>
+                        {(team.logo || team.photo) && (
+                          <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-9 w-9 object-contain mx-auto mb-2 rounded-full bg-gray-50 ring-1 ring-gray-200" />
+                        )}
+                        <p className="font-semibold text-sm mb-2 truncate max-w-full px-2">{team.name}</p>
+                        {qrValue ? (
+                          <QRCode value={qrValue} size={110} className="mx-auto" />
+                        ) : (
+                          <p className="text-xs text-gray-400 py-8">sin link</p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
     </>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ejeInfo } from '../utils/eje'
 
-export default function TeamCard({ team, onVote, disabled, voted }) {
+export default function TeamCard({ team, onVote, disabled, voted, hideVoteButton }) {
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
   const isLong = team.description && team.description.length > 80
@@ -107,28 +107,30 @@ export default function TeamCard({ team, onVote, disabled, voted }) {
           </div>
         )}
 
-        <button
-          onClick={() => onVote(team.id)}
-          disabled={disabled && !voted}
-          className={`mt-auto w-full py-3 rounded-xl font-semibold text-base transition-all duration-200 ${
-            voted
-              ? 'bg-espe-50 text-espe-700 ring-1 ring-espe-300 cursor-default'
-              : disabled
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-espe-600 text-white hover:bg-espe-700 active:scale-[0.97] shadow-md hover:shadow-lg'
-          }`}
-        >
-          {voted ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-              Voto Registrado
-            </span>
-          ) : (
-            'Votar'
-          )}
-        </button>
+        {!hideVoteButton && (
+          <button
+            onClick={() => onVote(team.id)}
+            disabled={disabled && !voted}
+            className={`mt-auto w-full py-3 rounded-xl font-semibold text-base transition-all duration-200 ${
+              voted
+                ? 'bg-espe-50 text-espe-700 ring-1 ring-espe-300 cursor-default'
+                : disabled
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-espe-600 text-white hover:bg-espe-700 active:scale-[0.97] shadow-md hover:shadow-lg'
+            }`}
+          >
+            {voted ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Voto Registrado
+              </span>
+            ) : (
+              'Votar'
+            )}
+          </button>
+        )}
       </div>
     </div>
   )

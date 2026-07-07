@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import LogoBar from '../components/LogoBar'
@@ -316,11 +316,12 @@ function JudgeScore({ token, name, onLogout, teamId }) {
                   </div>
                 ) : q.type === 'text' ? (
                   <textarea
-                    rows="2"
+                    ref={el => el && setTimeout(() => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px' })}
+                    rows="3"
                     value={answers[selectedTeamId]?.[q.id] ?? ''}
-                    onChange={e => setText(q.id, e.target.value)}
+                    onChange={e => { setText(q.id, e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
                     placeholder="Escribe tu observación..."
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400"
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400 resize-none overflow-hidden leading-relaxed"
                   />
                 ) : (
                   <div className="flex items-center gap-2">
