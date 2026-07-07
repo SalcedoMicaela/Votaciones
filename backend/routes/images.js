@@ -1,6 +1,7 @@
 const express = require('express')
 const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
+const { isCloudinaryUrl } = require('../imageUrl')
 
 const router = express.Router()
 
@@ -37,6 +38,12 @@ router.get('/teams/:id/:field', async (req, res) => {
 
     const image = team?.[field]
     if (!image) return res.status(404).end()
+
+    // Si es una URL de Cloudinary, redirigir
+    if (isCloudinaryUrl(image)) {
+      return res.redirect(301, image)
+    }
+
     sendDataImage(req, res, image)
   } catch (err) {
     res.status(500).json({ error: err.message })

@@ -1,6 +1,8 @@
 // Helpers de fase y ranking combinado (ponderación configurable desde settings)
 // Valores por defecto: judgeMax=18, voteMax=2 (total 20)
 
+const { getImageUrl } = require('./imageUrl')
+
 async function getCurrentPhase(db) {
   const s = await db.collection('settings').findOne({ key: 'current_phase' })
   return parseInt(s?.value || '1', 10) || 1
@@ -41,16 +43,6 @@ async function getRubricMax(db) {
   return questions.reduce((s, q) => s + (Number(q.maxScore) || 0), 0)
 }
 
-function imageVersion(value) {
-  return value instanceof Date ? value.getTime() : ''
-}
-
-function imageUrl(base, id, field, hasImage, version) {
-  if (!base || !hasImage) return ''
-  const v = imageVersion(version) || id
-  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
-}
-
 // Equipos activos en una fase: phaseReached >= phase (default 1)
 function isActive(team, phase) {
   return (team.phaseReached || 1) >= phase
@@ -66,10 +58,10 @@ async function computeRanking(db, phase, imageBase = '') {
         $project: {
           name: 1,
           eje: 1,
+          logo: 1,
+          photo: 1,
           logoUpdatedAt: 1,
           photoUpdatedAt: 1,
-          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
-          hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
         }
       }
     ]).toArray(),
@@ -102,8 +94,8 @@ async function computeRanking(db, phase, imageBase = '') {
     return {
       id,
       name: t.name,
-      logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
-      photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
+      logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
+      photo: getImageUrl(t.photo, imageBase, id, 'photo', t.photoUpdatedAt),
       eje: t.eje || '',
       notaJurados: round2(nota),
       rubricMax,

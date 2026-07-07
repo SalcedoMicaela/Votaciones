@@ -6,6 +6,7 @@ const { getDb } = require('../db')
 const { hashPassword, verifyPassword } = require('../auth')
 const { getCurrentPhase, setCurrentPhase, computeRanking, isActive, getWeights, setWeights } = require('../phase')
 const { getCached, clearRankingCache } = require('../rankingCache')
+const { getImageUrl } = require('../imageUrl')
 
 // Valida una contraseña contra la guardada (hasheada) en la BD.
 async function isValidAdminPassword(password) {
@@ -74,16 +75,6 @@ function mapTeam(doc) {
   }
 }
 
-function imageVersion(value) {
-  return value instanceof Date ? value.getTime() : ''
-}
-
-function imageUrl(base, id, field, hasImage, version) {
-  if (!hasImage) return ''
-  const v = imageVersion(version) || id
-  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
-}
-
 function mapTeamList(doc, imageBase) {
   const id = doc._id.toString()
   return {
@@ -91,8 +82,8 @@ function mapTeamList(doc, imageBase) {
     name: doc.name,
     description: doc.description || '',
     eje: doc.eje || '',
-    logo: imageUrl(imageBase, id, 'logo', doc.hasLogo, doc.logoUpdatedAt),
-    photo: imageUrl(imageBase, id, 'photo', doc.hasPhoto, doc.photoUpdatedAt),
+    logo: getImageUrl(doc.logo, imageBase, id, 'logo', doc.logoUpdatedAt),
+    photo: getImageUrl(doc.photo, imageBase, id, 'photo', doc.photoUpdatedAt),
     whatsapp: doc.whatsapp || '',
     members: doc.members || [],
     phaseReached: doc.phaseReached || 1,
@@ -125,10 +116,10 @@ router.get('/teams', async (req, res) => {
             whatsapp: 1,
             members: 1,
             phaseReached: 1,
+            logo: 1,
+            photo: 1,
             logoUpdatedAt: 1,
             photoUpdatedAt: 1,
-            hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
-            hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
           }
         }
       ])
@@ -583,10 +574,10 @@ router.get('/dashboard-data', async (req, res) => {
             whatsapp: 1,
             members: 1,
             phaseReached: 1,
+            logo: 1,
+            photo: 1,
             logoUpdatedAt: 1,
             photoUpdatedAt: 1,
-            hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
-            hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
           }
         }
       ]).toArray(),
@@ -642,8 +633,8 @@ async function getScoresDetail(db, phase, imageBase = '') {
         $project: {
           name: 1,
           phaseReached: 1,
+          logo: 1,
           logoUpdatedAt: 1,
-          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
         }
       }
     ]).toArray(),
@@ -686,7 +677,7 @@ async function getScoresDetail(db, phase, imageBase = '') {
     return {
       id,
       name: t.name,
-      logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
+      logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
       scores: teamScores,
     }
   })

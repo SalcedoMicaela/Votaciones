@@ -4,6 +4,7 @@ const { ObjectId } = require('mongodb')
 const { getDb } = require('../db')
 const { getCurrentPhase, isActive } = require('../phase')
 const { clearRankingCache } = require('../rankingCache')
+const { getImageUrl } = require('../imageUrl')
 
 // Solo se acepta el correo institucional de la ESPE (1 voto por correo y por fase)
 const EMAIL_RE = /^[^\s@]+@espe\.edu\.ec$/i
@@ -25,16 +26,6 @@ function getImageBase(req) {
   return `${req.protocol}://${req.get('host')}`
 }
 
-function imageVersion(value) {
-  return value instanceof Date ? value.getTime() : ''
-}
-
-function imageUrl(base, id, field, hasImage, version) {
-  if (!hasImage) return ''
-  const v = imageVersion(version) || id
-  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
-}
-
 async function findPublicTeams(db, phase) {
   return db.collection('teams').aggregate([
     { $sort: { createdAt: 1, _id: 1 } },
@@ -45,10 +36,10 @@ async function findPublicTeams(db, phase) {
         description: 1,
         eje: 1,
         members: 1,
+        logo: 1,
+        photo: 1,
         logoUpdatedAt: 1,
         photoUpdatedAt: 1,
-        hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
-        hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
       }
     }
   ]).toArray()
@@ -61,8 +52,8 @@ function mapPublicTeam(t, imageBase) {
     name: t.name,
     description: t.description || '',
     eje: t.eje || '',
-    logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
-    photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
+    logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
+    photo: getImageUrl(t.photo, imageBase, id, 'photo', t.photoUpdatedAt),
     members: t.members || [],
   }
 }

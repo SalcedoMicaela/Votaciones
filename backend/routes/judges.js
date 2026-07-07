@@ -6,6 +6,7 @@ const { getDb } = require('../db')
 const { verifyPassword } = require('../auth')
 const { getCurrentPhase, isActive, getWeights, getRubricMax } = require('../phase')
 const { getCached, clearRankingCache } = require('../rankingCache')
+const { getImageUrl } = require('../imageUrl')
 
 function makeToken() {
   return crypto.randomBytes(16).toString('hex')
@@ -13,16 +14,6 @@ function makeToken() {
 
 function getImageBase(req) {
   return `${req.protocol}://${req.get('host')}`
-}
-
-function imageVersion(value) {
-  return value instanceof Date ? value.getTime() : ''
-}
-
-function imageUrl(base, id, field, hasImage, version) {
-  if (!hasImage) return ''
-  const v = imageVersion(version) || id
-  return `${base}/api/images/teams/${id}/${field}${v ? `?v=${v}` : ''}`
 }
 
 // Autenticación del jurado por token de sesión (header x-judge-token)
@@ -177,10 +168,10 @@ router.get('/ranking/public', async (req, res) => {
         $project: {
           name: 1,
           description: 1,
+          logo: 1,
+          photo: 1,
           logoUpdatedAt: 1,
           photoUpdatedAt: 1,
-          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
-          hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
         }
       }
     ]).toArray()
@@ -213,8 +204,8 @@ router.get('/ranking/public', async (req, res) => {
       return {
         id,
         name: t.name,
-        logo: imageUrl(imageBase, id, 'logo', t.hasLogo, t.logoUpdatedAt),
-        photo: imageUrl(imageBase, id, 'photo', t.hasPhoto, t.photoUpdatedAt),
+        logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
+        photo: getImageUrl(t.photo, imageBase, id, 'photo', t.photoUpdatedAt),
         description: t.description || '',
         final: round2(puntosNota + puntosVotos),
       }
