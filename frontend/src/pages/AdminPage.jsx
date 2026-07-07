@@ -1286,7 +1286,7 @@ export default function AdminPage() {
                             <tr className="bg-gray-50 text-xs text-gray-500 uppercase">
                               <th className="text-left px-3 py-2 font-semibold">Juez</th>
                               {scoreData.questions.map(q => (
-                                <th key={q.id} className="text-center px-2 py-2 font-semibold max-w-[120px] truncate" title={q.text}>
+                                <th key={q.id} className={`px-2 py-2 font-semibold ${q.type === 'text' ? 'text-left min-w-[180px]' : 'text-center max-w-[120px] truncate'}`} title={q.text}>
                                   {q.text.length > 25 ? q.text.slice(0, 25) + '…' : q.text}
                                 </th>
                               ))}
@@ -1303,9 +1303,16 @@ export default function AdminPage() {
                                     <td key={q.id} className="text-center px-2 py-2">
                                       {q.type === 'text' ? (
                                         ans?.text ? (
-                                          <span className="text-[11px] text-gray-500 italic max-w-[180px] inline-block leading-relaxed" title={ans.text}>
-                                            &ldquo;{ans.text}&rdquo;
-                                          </span>
+                                          <div className="group relative">
+                                            <p className="text-xs text-gray-500 leading-relaxed text-left max-w-[280px] line-clamp-2">
+                                              {ans.text}
+                                            </p>
+                                            {ans.text.length > 120 && (
+                                              <div className="hidden group-hover:block absolute z-10 left-0 top-full mt-1 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-xl max-w-md whitespace-pre-line break-words">
+                                                {ans.text}
+                                              </div>
+                                            )}
+                                          </div>
                                         ) : (
                                           <span className="text-gray-300">—</span>
                                         )
