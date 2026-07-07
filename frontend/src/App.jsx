@@ -1,4 +1,7 @@
-import { Routes, Route, NavLink } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import axios from 'axios'
+import socket from './socket'
 import VotePage from './pages/VotePage'
 import AdminPage from './pages/AdminPage'
 import ResultsPage from './pages/ResultsPage'
@@ -8,6 +11,7 @@ import JudgePage from './pages/JudgePage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import Logo from './components/Logo'
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const navClass = ({ isActive }) =>
   `px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
     isActive ? 'text-espe-700 bg-espe-50' : 'text-gray-500 hover:text-espe-700 hover:bg-gray-50'
@@ -15,6 +19,14 @@ const navClass = ({ isActive }) =>
 
 export default function App() {
   const year = new Date().getFullYear()
+  const [showPanel, setShowPanel] = useState(true)
+
+  useEffect(() => {
+    axios.get(`${API}/api/admin/status`).then(r => setShowPanel(r.data.showPanel !== false)).catch(() => {})
+    socket.on('panel:toggle', setShowPanel)
+    return () => socket.off('panel:toggle', setShowPanel)
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40 print:hidden">
@@ -27,7 +39,7 @@ export default function App() {
           <nav className="flex items-center gap-1 flex-shrink-0">
             <NavLink to="/" end className={navClass}>Votar</NavLink>
             <NavLink to="/clasificacion" className={navClass}>Clasificación</NavLink>
-            <NavLink to="/results" className={navClass}>Resultados</NavLink>
+            {showPanel && <NavLink to="/results" className={navClass}>Resultados</NavLink>}
             <NavLink to="/admin" className={navClass}>Admin</NavLink>
           </nav>
         </div>
@@ -37,7 +49,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<VotePage />} />
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/results" element={<ResultsPage />} />
+          <Route path="/results" element={showPanel ? <ResultsPage /> : <Navigate to="/" replace />} />
           <Route path="/subir/:token" element={<UploadPage />} />
           <Route path="/votar/:teamId" element={<VoteTeamPage />} />
           <Route path="/jurado" element={<JudgePage />} />

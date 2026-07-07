@@ -15,32 +15,25 @@ export default function ResultsPage() {
   const [phases, setPhases] = useState([])
   const [selectedPhase, setSelectedPhase] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showPanel, setShowPanel] = useState(true)
 
   useEffect(() => {
     loadHistory()
     socket.on('vote:update', loadHistory)
     socket.on('score:update', loadHistory)
     socket.on('phase:update', loadHistory)
-    socket.on('panel:toggle', setShowPanel)
     return () => {
       socket.off('vote:update', loadHistory)
       socket.off('score:update', loadHistory)
       socket.off('phase:update', loadHistory)
-      socket.off('panel:toggle', setShowPanel)
     }
   }, [])
 
   async function loadHistory() {
     try {
-      const [history, status] = await Promise.all([
-        axios.get(`${API}/api/admin/ranking/history`),
-        axios.get(`${API}/api/admin/status`),
-      ])
-      setPhases(history.data.phases)
-      setShowPanel(status.data.showPanel !== false)
-      if (!selectedPhase && history.data.phases.length > 0) {
-        setSelectedPhase(history.data.phases[history.data.phases.length - 1].phase)
+      const res = await axios.get(`${API}/api/admin/ranking/history`)
+      setPhases(res.data.phases)
+      if (!selectedPhase && res.data.phases.length > 0) {
+        setSelectedPhase(res.data.phases[res.data.phases.length - 1].phase)
       }
     } catch (err) {
       console.error(err)
@@ -58,15 +51,6 @@ export default function ResultsPage() {
       <div className="flex flex-col items-center justify-center mt-20">
         <div className="w-12 h-12 border-4 border-espe-200 border-t-espe-600 rounded-full animate-spin mb-4" />
         <p className="text-gray-400">Cargando...</p>
-      </div>
-    )
-  }
-
-  if (!showPanel) {
-    return (
-      <div className="max-w-md mx-auto mt-16 text-center bg-white p-8 rounded-2xl shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Resultados</h1>
-        <p className="text-gray-500">Los resultados se publicarán cuando el administrador los habilite.</p>
       </div>
     )
   }
