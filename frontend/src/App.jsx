@@ -37,7 +37,7 @@ export default function App() {
             <span className="hidden sm:block font-bold text-gray-800 truncate">Sistema de Votaciones</span>
           </NavLink>
           <nav className="flex items-center gap-1 flex-shrink-0">
-            <NavLink to="/" end className={navClass}>Votar</NavLink>
+            <NavLink to="/" end className={navClass}>{showPanel ? 'Votar' : 'Equipos'}</NavLink>
             <NavLink to="/clasificacion" className={navClass}>Clasificación</NavLink>
             {showPanel && <NavLink to="/results" className={navClass}>Resultados</NavLink>}
             <NavLink to="/admin" className={navClass}>Admin</NavLink>

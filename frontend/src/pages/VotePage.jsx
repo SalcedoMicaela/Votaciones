@@ -188,24 +188,26 @@ export default function VotePage() {
           <LogoBar />
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-800 mb-3">
-          Vota por el mejor proyecto
+          {showPanel ? 'Vota por el mejor proyecto' : 'Conoce a nuestros equipos'}
         </h1>
         <div className="inline-flex flex-wrap items-center justify-center gap-2">
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-espe-50 text-espe-700 ring-1 ring-espe-200">
             Fase {phase}
           </span>
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border border-gray-200 bg-white shadow-sm">
-            <span className="relative flex h-2.5 w-2.5">
-              {votingActive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${votingActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+          {showPanel && (
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border border-gray-200 bg-white shadow-sm">
+              <span className="relative flex h-2.5 w-2.5">
+                {votingActive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />}
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${votingActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              </span>
+              <span className={votingActive ? 'text-emerald-700' : 'text-gray-500'}>
+                {votingActive ? 'Votación abierta' : 'Votación cerrada'}
+              </span>
             </span>
-            <span className={votingActive ? 'text-emerald-700' : 'text-gray-500'}>
-              {votingActive ? 'Votación abierta' : 'Votación cerrada'}
-            </span>
-          </span>
+          )}
         </div>
         <p className="text-sm text-gray-500 mt-2">
-          Vota por tu equipo favorito
+          {showPanel ? 'Vota por tu equipo favorito' : 'Explora los proyectos y descubre sus propuestas'}
         </p>
         <p className="text-sm text-gray-400 mt-1">
           {teams.length} proyecto{teams.length !== 1 ? 's' : ''} participando
@@ -213,36 +215,38 @@ export default function VotePage() {
       </div>
 
       {/* CORREO */}
-      <div className="max-w-md mx-auto mb-8">
-        <div className="bg-white rounded-2xl shadow-md p-5">
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Tu correo institucional
-          </label>
-          <input
-            ref={emailRef}
-            type="email"
-            value={email}
-            onChange={e => handleEmailChange(e.target.value)}
-            onBlur={e => checkEmail(e.target.value)}
-            placeholder="nombre@espe.edu.ec"
-            className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 transition ${
-              email && !emailValid ? 'border-red-300 focus:ring-red-300' : 'border-gray-200 focus:ring-espe-400'
-            }`}
-          />
-          {email && !emailValid && (
-            <p className="mt-1.5 text-xs text-red-500">Debe terminar en @espe.edu.ec</p>
-          )}
-          {emailValid && hasVoted && (
-            <p className="mt-1.5 text-xs text-emerald-600 font-medium">Con este correo ya votaste. ¡Gracias!</p>
-          )}
-          {emailValid && !hasVoted && votingActive && (
-            <p className="mt-1.5 text-xs text-espe-600 font-medium">Listo. Elige tu equipo favorito.</p>
-          )}
-          {!emailValid && (
-            <p className="mt-1.5 text-xs text-gray-400">Necesitas tu correo @espe.edu.ec para votar (1 voto por persona).</p>
-          )}
+      {showPanel && (
+        <div className="max-w-md mx-auto mb-8">
+          <div className="bg-white rounded-2xl shadow-md p-5">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">
+              Tu correo institucional
+            </label>
+            <input
+              ref={emailRef}
+              type="email"
+              value={email}
+              onChange={e => handleEmailChange(e.target.value)}
+              onBlur={e => checkEmail(e.target.value)}
+              placeholder="nombre@espe.edu.ec"
+              className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 transition ${
+                email && !emailValid ? 'border-red-300 focus:ring-red-300' : 'border-gray-200 focus:ring-espe-400'
+              }`}
+            />
+            {email && !emailValid && (
+              <p className="mt-1.5 text-xs text-red-500">Debe terminar en @espe.edu.ec</p>
+            )}
+            {emailValid && hasVoted && (
+              <p className="mt-1.5 text-xs text-emerald-600 font-medium">Con este correo ya votaste. ¡Gracias!</p>
+            )}
+            {emailValid && !hasVoted && votingActive && (
+              <p className="mt-1.5 text-xs text-espe-600 font-medium">Listo. Elige tu equipo favorito.</p>
+            )}
+            {!emailValid && (
+              <p className="mt-1.5 text-xs text-gray-400">Necesitas tu correo @espe.edu.ec para votar (1 voto por persona).</p>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* BUSCADOR */}
       {teams.length > 0 && (
@@ -320,7 +324,7 @@ export default function VotePage() {
         </div>
       )}
 
-      {!votingActive && !hasVoted && teams.length > 0 && (
+      {showPanel && !votingActive && !hasVoted && teams.length > 0 && (
         <div className="text-center mt-8 py-4 bg-yellow-50 rounded-xl border border-yellow-200">
           <p className="text-yellow-700 text-sm font-medium">
             La votación será habilitada por el administrador
