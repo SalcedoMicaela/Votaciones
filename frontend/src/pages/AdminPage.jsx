@@ -73,6 +73,10 @@ export default function AdminPage() {
     if (!authenticated) return
     loadDashboard()
     loadLinks()
+  }, [authenticated])
+
+  useEffect(() => {
+    if (!authenticated) return
     const onVote = d => { setResults(d); loadRanking(); loadScores() }
     const onToggle = a => setVotingActive(a)
     const onScore = () => { loadRanking(); loadScores() }
@@ -87,7 +91,7 @@ export default function AdminPage() {
       socket.off('score:update', onScore)
       socket.off('phase:update', onPhase)
     }
-  }, [authenticated])
+  }, [authenticated, scorePhase, rankingPhase])
 
   function showToast(text) {
     setToast(text)
@@ -1171,15 +1175,56 @@ export default function AdminPage() {
                 ))}
               </div>
 
+              {scoreData.judges.length > 0 && scoreData.teams.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm p-5">
+                  <h2 className="font-semibold text-gray-700 mb-3">Progreso de jurados</h2>
+                  <ul className="space-y-2">
+                    {scoreData.judges.map(j => {
+                      const done = scoreData.teams.filter(t => t.scores.some(s => s.judgeId === j.id)).length
+                      const total = scoreData.teams.length
+                      const complete = done === total
+                      return (
+                        <li key={j.id} className="flex items-center gap-3">
+                          <span className="flex-1 min-w-0 truncate text-sm font-medium text-gray-700">{j.name}</span>
+                          <div className="hidden sm:block w-32 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${complete ? 'bg-espe-500' : 'bg-amber-400'}`} style={{ width: `${Math.round((done / total) * 100)}%` }} />
+                          </div>
+                          <span className={`text-sm font-semibold w-20 text-right inline-flex items-center justify-end gap-1 ${complete ? 'text-espe-700' : 'text-amber-600'}`}>
+                            {done}/{total} equipos {complete && <Check className="w-4 h-4" />}
+                          </span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+
               {scoreData.teams.length === 0 ? (
                 <p className="text-center text-gray-400 py-10">No hay equipos activos en esta fase.</p>
               ) : (
-                scoreData.teams.map(team => (
+                scoreData.teams.map(team => {
+                  const missing = scoreData.judges.filter(j => !team.scores.some(s => s.judgeId === j.id))
+                  return (
                   <div key={team.id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                    <div className="px-4 py-3 font-bold text-gray-800 border-b border-gray-100 flex items-center gap-2">
-                      {team.logo && <img src={team.logo} alt="" className="w-6 h-6 rounded-full object-contain bg-gray-50 ring-1 ring-gray-200" />}
-                      {team.name}
-                      <span className="text-xs font-normal text-gray-400 ml-auto">{team.scores.length} jurado{team.scores.length !== 1 ? 's' : ''}</span>
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="font-bold text-gray-800 flex items-center gap-2">
+                        {team.logo && <img src={team.logo} alt="" className="w-6 h-6 rounded-full object-contain bg-gray-50 ring-1 ring-gray-200" />}
+                        {team.name}
+                        <span className={`text-xs font-normal ml-auto ${missing.length ? 'text-amber-600' : 'text-gray-400'}`}>
+                          {team.scores.length}/{scoreData.judges.length} jurado{scoreData.judges.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      {missing.length > 0 ? (
+                        <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                          Faltan: {missing.map(j => j.name).join(', ')}
+                        </p>
+                      ) : scoreData.judges.length > 0 && (
+                        <p className="mt-1 text-xs text-espe-600 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                          Todos los jurados calificaron
+                        </p>
+                      )}
                     </div>
                     {team.scores.length === 0 ? (
                       <p className="text-center text-gray-400 py-6 text-sm">Sin calificaciones en esta fase</p>
@@ -1229,7 +1274,8 @@ export default function AdminPage() {
                       </div>
                     )}
                   </div>
-                ))
+                  )
+                })
               )}
             </div>
           )}
