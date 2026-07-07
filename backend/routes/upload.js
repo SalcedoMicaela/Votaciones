@@ -3,6 +3,7 @@ const router = express.Router()
 const { getDb } = require('../db')
 const { clearRankingCache } = require('../rankingCache')
 const { uploadToCloudinary } = require('../services/uploadToCloudinary')
+const { getImageUrl } = require('../imageUrl')
 
 // Límite por imagen: ~3.5M caracteres base64 ≈ 2.5 MB ya decodificado
 const MAX_IMAGE_CHARS = 3_500_000
@@ -20,8 +21,8 @@ router.get('/:token', async (req, res) => {
     if (!team) return res.status(404).json({ error: 'Link de subida inválido' })
     res.json({
       name: team.name,
-      logo: team.logo || '',
-      photo: team.photo || '',
+      logo: getImageUrl(team.logoUpdatedAt, '', team._id.toString(), 'logo'),
+      photo: getImageUrl(team.photoUpdatedAt, '', team._id.toString(), 'photo'),
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -42,21 +43,21 @@ router.post('/:token', async (req, res) => {
       if (!isValidImage(logo)) return res.status(400).json({ error: 'El logo debe ser una imagen válida' })
       if (logo.length > MAX_IMAGE_CHARS) return res.status(413).json({ error: 'El logo es demasiado grande (máx. ~2.5 MB)' })
       if (logo === '') {
-        update.logo = ''
+        update.logoUpdatedAt = null
       } else {
-        update.logo = await uploadToCloudinary(logo, `teams/${teamId}/logo`)
+        await uploadToCloudinary(logo, `teams/${teamId}/logo`)
+        update.logoUpdatedAt = new Date()
       }
-      update.logoUpdatedAt = new Date()
     }
     if (photo !== undefined) {
       if (!isValidImage(photo)) return res.status(400).json({ error: 'La foto debe ser una imagen válida' })
       if (photo.length > MAX_IMAGE_CHARS) return res.status(413).json({ error: 'La foto es demasiado grande (máx. ~2.5 MB)' })
       if (photo === '') {
-        update.photo = ''
+        update.photoUpdatedAt = null
       } else {
-        update.photo = await uploadToCloudinary(photo, `teams/${teamId}/photo`)
+        await uploadToCloudinary(photo, `teams/${teamId}/photo`)
+        update.photoUpdatedAt = new Date()
       }
-      update.photoUpdatedAt = new Date()
     }
 
     if (Object.keys(update).length === 0) {
@@ -65,13 +66,10 @@ router.post('/:token', async (req, res) => {
 
     await getDb().collection('teams').updateOne({ _id: team._id }, { $set: update })
 
-    // Notifica a las vistas conectadas para que refresquen las imágenes
     clearRankingCache()
     req.app.get('io').emit('team:update', { id: team._id.toString() })
 
-    const savedLogo = update.logo !== undefined ? update.logo : team.logo
-    const savedPhoto = update.photo !== undefined ? update.photo : team.photo
-    res.json({ success: true, logo: savedLogo || '', photo: savedPhoto || '' })
+    res.json({ success: true, logo: !!update.logoUpdatedAt, photo: !!update.photoUpdatedAt })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Error del servidor' })

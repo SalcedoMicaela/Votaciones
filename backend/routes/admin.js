@@ -7,6 +7,7 @@ const { hashPassword, verifyPassword } = require('../auth')
 const { getCurrentPhase, setCurrentPhase, computeRanking, isActive, getWeights, setWeights } = require('../phase')
 const { getCached, clearRankingCache } = require('../rankingCache')
 const { getImageUrl } = require('../imageUrl')
+const { uploadToCloudinary } = require('../services/uploadToCloudinary')
 
 // Valida una contraseña contra la guardada (hasheada) en la BD.
 async function isValidAdminPassword(password) {
@@ -62,13 +63,15 @@ function makeToken() {
 // Mapea un documento de Mongo (_id) al formato que espera el frontend (id como string).
 // IMPORTANTE: NO incluye uploadToken (esta lista es pública; el token va por /links protegido).
 function mapTeam(doc) {
+  const id = doc._id.toString()
+  const base = process.env.BASE_URL || ''
   return {
-    id: doc._id.toString(),
+    id,
     name: doc.name,
     description: doc.description || '',
     eje: doc.eje || '',
-    logo: doc.logo || '',
-    photo: doc.photo || '',
+    logo: getImageUrl(doc.logoUpdatedAt, base, id, 'logo'),
+    photo: getImageUrl(doc.photoUpdatedAt, base, id, 'photo'),
     whatsapp: doc.whatsapp || '',
     members: doc.members || [],
     phaseReached: doc.phaseReached || 1,
@@ -82,8 +85,8 @@ function mapTeamList(doc, imageBase) {
     name: doc.name,
     description: doc.description || '',
     eje: doc.eje || '',
-    logo: getImageUrl(doc.logo, imageBase, id, 'logo', doc.logoUpdatedAt),
-    photo: getImageUrl(doc.photo, imageBase, id, 'photo', doc.photoUpdatedAt),
+    logo: getImageUrl(doc.logoUpdatedAt, imageBase, id, 'logo'),
+    photo: getImageUrl(doc.photoUpdatedAt, imageBase, id, 'photo'),
     whatsapp: doc.whatsapp || '',
     members: doc.members || [],
     phaseReached: doc.phaseReached || 1,
@@ -116,8 +119,6 @@ router.get('/teams', async (req, res) => {
             whatsapp: 1,
             members: 1,
             phaseReached: 1,
-            logo: 1,
-            photo: 1,
             logoUpdatedAt: 1,
             photoUpdatedAt: 1,
           }
@@ -150,16 +151,28 @@ router.post('/teams', adminAuth, async (req, res) => {
       name,
       description: description || '',
       eje: eje || '',
-      logo: logo || '',
-      photo: photo || '',
-      logoUpdatedAt: logo ? new Date() : null,
-      photoUpdatedAt: photo ? new Date() : null,
+      logoUpdatedAt: null,
+      photoUpdatedAt: null,
       whatsapp: whatsapp || '',
       uploadToken: makeToken(),
       members: sanitizeMembers(members) || [],
       createdAt: new Date(),
     }
+    if (logo) {
+      doc.logoUpdatedAt = new Date()
+    }
+    if (photo) {
+      doc.photoUpdatedAt = new Date()
+    }
     const result = await getDb().collection('teams').insertOne(doc)
+
+    // Subir imágenes a Cloudinary en segundo plano
+    const teamId = result.insertedId.toString()
+    const uploads = []
+    if (logo) uploads.push(uploadToCloudinary(logo, `teams/${teamId}/logo`))
+    if (photo) uploads.push(uploadToCloudinary(photo, `teams/${teamId}/photo`))
+    await Promise.all(uploads)
+
     clearRankingCache()
     res.json(mapTeam({ ...doc, _id: result.insertedId }))
   } catch (err) {
@@ -177,8 +190,8 @@ router.get('/links', adminAuth, async (req, res) => {
           name: 1,
           uploadToken: 1,
           whatsapp: 1,
-          hasLogo: { $gt: [{ $strLenCP: { $ifNull: ['$logo', ''] } }, 0] },
-          hasPhoto: { $gt: [{ $strLenCP: { $ifNull: ['$photo', ''] } }, 0] },
+          hasLogo: { $ne: ['$logoUpdatedAt', null] },
+          hasPhoto: { $ne: ['$photoUpdatedAt', null] },
         }
       }
     ]).toArray()
@@ -213,12 +226,20 @@ router.put('/teams/:id', adminAuth, async (req, res) => {
     const set = { name, description: description || '' }
     if (eje !== undefined) set.eje = eje
     if (photo !== undefined) {
-      set.photo = photo
-      set.photoUpdatedAt = new Date()
+      if (photo) {
+        await uploadToCloudinary(photo, `teams/${id}/photo`)
+        set.photoUpdatedAt = new Date()
+      } else {
+        set.photoUpdatedAt = null
+      }
     }
     if (logo !== undefined) {
-      set.logo = logo
-      set.logoUpdatedAt = new Date()
+      if (logo) {
+        await uploadToCloudinary(logo, `teams/${id}/logo`)
+        set.logoUpdatedAt = new Date()
+      } else {
+        set.logoUpdatedAt = null
+      }
     }
     if (whatsapp !== undefined) set.whatsapp = whatsapp
     const cleanMembers = sanitizeMembers(members)
@@ -574,8 +595,6 @@ router.get('/dashboard-data', async (req, res) => {
             whatsapp: 1,
             members: 1,
             phaseReached: 1,
-            logo: 1,
-            photo: 1,
             logoUpdatedAt: 1,
             photoUpdatedAt: 1,
           }
@@ -633,7 +652,6 @@ async function getScoresDetail(db, phase, imageBase = '') {
         $project: {
           name: 1,
           phaseReached: 1,
-          logo: 1,
           logoUpdatedAt: 1,
         }
       }
@@ -677,7 +695,7 @@ async function getScoresDetail(db, phase, imageBase = '') {
     return {
       id,
       name: t.name,
-      logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
+      logo: getImageUrl(t.logoUpdatedAt, imageBase, id, 'logo'),
       scores: teamScores,
     }
   })

@@ -58,8 +58,6 @@ async function computeRanking(db, phase, imageBase = '') {
         $project: {
           name: 1,
           eje: 1,
-          logo: 1,
-          photo: 1,
           logoUpdatedAt: 1,
           photoUpdatedAt: 1,
         }
@@ -94,8 +92,8 @@ async function computeRanking(db, phase, imageBase = '') {
     return {
       id,
       name: t.name,
-      logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
-      photo: getImageUrl(t.photo, imageBase, id, 'photo', t.photoUpdatedAt),
+      logo: getImageUrl(t.logoUpdatedAt, imageBase, id, 'logo'),
+      photo: getImageUrl(t.photoUpdatedAt, imageBase, id, 'photo'),
       eje: t.eje || '',
       notaJurados: round2(nota),
       rubricMax,

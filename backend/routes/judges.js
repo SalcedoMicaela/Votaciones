@@ -73,7 +73,7 @@ router.get('/teams', judgeAuth, async (req, res) => {
         maxScore: q.maxScore,
       }))
 
-    const teams = (await db.collection('teams').find({}, { projection: { logo: 0, photo: 0, description: 0, uploadToken: 0 } }).sort({ createdAt: 1, _id: 1 }).toArray())
+    const teams = (await db.collection('teams').find({}, { projection: { name: 1, eje: 1, members: 1, phaseReached: 1, logoUpdatedAt: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray())
       .filter(t => isActive(t, phase))
 
     const myScores = await db.collection('scores').find({ judgeId, phase }).toArray()
@@ -86,7 +86,7 @@ router.get('/teams', judgeAuth, async (req, res) => {
       return {
         id,
         name: t.name,
-        logo: t.logo || '',
+        logo: getImageUrl(t.logoUpdatedAt, '', id, 'logo'),
         eje: t.eje || '',
         members: t.members || [],
         myScore: sc ? { answers: sc.answers, total: sc.total } : null,
@@ -168,8 +168,6 @@ router.get('/ranking/public', async (req, res) => {
         $project: {
           name: 1,
           description: 1,
-          logo: 1,
-          photo: 1,
           logoUpdatedAt: 1,
           photoUpdatedAt: 1,
         }
@@ -204,8 +202,8 @@ router.get('/ranking/public', async (req, res) => {
       return {
         id,
         name: t.name,
-        logo: getImageUrl(t.logo, imageBase, id, 'logo', t.logoUpdatedAt),
-        photo: getImageUrl(t.photo, imageBase, id, 'photo', t.photoUpdatedAt),
+        logo: getImageUrl(t.logoUpdatedAt, imageBase, id, 'logo'),
+        photo: getImageUrl(t.photoUpdatedAt, imageBase, id, 'photo'),
         description: t.description || '',
         final: round2(puntosNota + puntosVotos),
       }
