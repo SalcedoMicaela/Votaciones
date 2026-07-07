@@ -22,8 +22,8 @@ async function getWeights(db) {
     db.collection('settings').findOne({ key: 'voteMax' }),
   ])
   return {
-    judgeMax: Math.max(0, Math.min(20, parseFloat(j?.value || '18') || 18)),
-    voteMax: Math.max(0, Math.min(20, parseFloat(v?.value || '2') || 2)),
+    judgeMax: Math.max(0, Math.min(20, j?.value != null ? Number(j.value) : 18)),
+    voteMax: Math.max(0, Math.min(20, v?.value != null ? Number(v.value) : 2)),
   }
 }
 
