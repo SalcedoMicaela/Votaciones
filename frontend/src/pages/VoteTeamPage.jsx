@@ -5,7 +5,7 @@ import socket from '../socket'
 import LogoBar from '../components/LogoBar'
 import { ejeInfo } from '../utils/eje'
 import { useEjes } from '../utils/EjeContext'
-import { SearchX } from 'lucide-react'
+import { SearchX, ExternalLink } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const EMAIL_RE = /^[^\s@]+@espe\.edu\.ec$/i
@@ -141,7 +141,14 @@ export default function VoteTeamPage() {
           )}
           <h1 className="text-2xl font-extrabold text-gray-800 mb-1">{team.name}</h1>
           {team.description && (
-            <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line mb-4">{team.description}</p>
+            <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-line mb-2">{team.description}</p>
+          )}
+          {team.link && (
+            <a href={team.link} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-espe-600 hover:text-espe-700 hover:underline mb-4">
+              <ExternalLink className="w-3.5 h-3.5" />
+              {team.link.replace(/^https?:\/\//, '').replace(/\/+$/, '')}
+            </a>
           )}
 
           {message && (

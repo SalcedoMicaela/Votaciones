@@ -73,7 +73,7 @@ router.get('/teams', judgeAuth, async (req, res) => {
         maxScore: q.maxScore,
       }))
 
-    const teams = (await db.collection('teams').find({}, { projection: { name: 1, eje: 1, members: 1, phaseReached: 1, logoUpdatedAt: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray())
+    const teams = (await db.collection('teams').find({}, { projection: { name: 1, eje: 1, link: 1, members: 1, phaseReached: 1, logoUpdatedAt: 1 } }).sort({ createdAt: 1, _id: 1 }).toArray())
       .filter(t => isActive(t, phase))
 
     const myScores = await db.collection('scores').find({ judgeId, phase }).toArray()

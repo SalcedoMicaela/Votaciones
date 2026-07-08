@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ejeInfo } from '../utils/eje'
 import { useEjes } from '../utils/EjeContext'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, ExternalLink } from 'lucide-react'
 
 function parseDescription(desc) {
   if (!desc) return { docente: null, descripcion: '' }
@@ -61,10 +61,18 @@ export default function TeamCard({ team, onVote, disabled, voted, hideVoteButton
         <h3 className="text-xl font-bold mb-1 leading-tight">{team.name}</h3>
 
         {docente && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
             <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="truncate">{docente}</span>
           </div>
+        )}
+        {team.link && (
+          <a href={team.link} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-espe-600 hover:text-espe-700 hover:underline mb-2"
+            onClick={e => e.stopPropagation()}>
+            <ExternalLink className="w-3.5 h-3.5" />
+            {team.link.replace(/^https?:\/\//, '').replace(/\/$/, '').replace(/\/$/, '')}
+          </a>
         )}
 
         {descripcion && (

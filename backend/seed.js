@@ -182,6 +182,7 @@ async function run() {
     description: buildDescription(p),
     eje: p.eje,
     whatsapp: '0991267695',
+    link: '',
     uploadToken: makeToken(),
     members: rosterByName[norm(p.name)] || [],
     // createdAt incremental para preservar el orden de la hoja
@@ -197,6 +198,7 @@ async function run() {
       description: '',
       eje: '',
       whatsapp: '0991267695',
+      link: '',
       uploadToken: makeToken(),
       members: r.members,
       createdAt: new Date(now + projects.length + j),

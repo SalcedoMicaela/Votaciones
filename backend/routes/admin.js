@@ -73,6 +73,7 @@ function mapTeam(doc) {
     logo: getImageUrl(doc.logoUpdatedAt, base, id, 'logo'),
     photo: getImageUrl(doc.photoUpdatedAt, base, id, 'photo'),
     whatsapp: doc.whatsapp || '',
+    link: doc.link || '',
     members: doc.members || [],
     phaseReached: doc.phaseReached || 1,
   }
@@ -88,6 +89,7 @@ function mapTeamList(doc, imageBase) {
     logo: getImageUrl(doc.logoUpdatedAt, imageBase, id, 'logo'),
     photo: getImageUrl(doc.photoUpdatedAt, imageBase, id, 'photo'),
     whatsapp: doc.whatsapp || '',
+    link: doc.link || '',
     members: doc.members || [],
     phaseReached: doc.phaseReached || 1,
   }
@@ -117,6 +119,7 @@ router.get('/teams', async (req, res) => {
             description: 1,
             eje: 1,
             whatsapp: 1,
+            link: 1,
             members: 1,
             phaseReached: 1,
             logoUpdatedAt: 1,
@@ -145,7 +148,7 @@ router.get('/teams/:id', adminAuth, async (req, res) => {
 })
 
 router.post('/teams', adminAuth, async (req, res) => {
-  const { name, description, photo, logo, whatsapp, members, eje } = req.body
+  const { name, description, photo, logo, whatsapp, link, members, eje } = req.body
   try {
     const doc = {
       name,
@@ -154,6 +157,7 @@ router.post('/teams', adminAuth, async (req, res) => {
       logoUpdatedAt: null,
       photoUpdatedAt: null,
       whatsapp: whatsapp || '',
+      link: link || '',
       uploadToken: makeToken(),
       members: sanitizeMembers(members) || [],
       createdAt: new Date(),
@@ -218,7 +222,7 @@ router.get('/links', adminAuth, async (req, res) => {
 })
 
 router.put('/teams/:id', adminAuth, async (req, res) => {
-  const { name, description, photo, logo, whatsapp, members, eje } = req.body
+  const { name, description, photo, logo, whatsapp, link, members, eje } = req.body
   const { id } = req.params
   if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Team not found' })
   try {
@@ -242,6 +246,7 @@ router.put('/teams/:id', adminAuth, async (req, res) => {
       }
     }
     if (whatsapp !== undefined) set.whatsapp = whatsapp
+    if (link !== undefined) set.link = link
     const cleanMembers = sanitizeMembers(members)
     if (cleanMembers !== undefined) set.members = cleanMembers
     const { matchedCount } = await getDb().collection('teams').updateOne(
@@ -676,6 +681,7 @@ router.get('/dashboard-data', async (req, res) => {
             description: 1,
             eje: 1,
             whatsapp: 1,
+            link: 1,
             members: 1,
             phaseReached: 1,
             logoUpdatedAt: 1,

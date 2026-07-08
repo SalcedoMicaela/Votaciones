@@ -35,6 +35,7 @@ async function findPublicTeams(db, phase) {
         name: 1,
         description: 1,
         eje: 1,
+        link: 1,
         members: 1,
         logoUpdatedAt: 1,
         photoUpdatedAt: 1,
@@ -50,6 +51,7 @@ function mapPublicTeam(t, imageBase) {
     name: t.name,
     description: t.description || '',
     eje: t.eje || '',
+    link: t.link || '',
     logo: getImageUrl(t.logoUpdatedAt, imageBase, id, 'logo'),
     photo: getImageUrl(t.photoUpdatedAt, imageBase, id, 'photo'),
     members: t.members || [],
@@ -76,6 +78,7 @@ async function computeResults(db) {
     photo: '',
     description: t.description || '',
     eje: t.eje || '',
+    link: t.link || '',
     members: t.members || [],
     votes: countMap[t._id.toString()] || 0,
   }))

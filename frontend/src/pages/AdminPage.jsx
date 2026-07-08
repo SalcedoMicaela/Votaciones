@@ -12,7 +12,7 @@ import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
-const emptyForm = { name: '', description: '', photo: '', logo: '', whatsapp: '', eje: '', members: [] }
+const emptyForm = { name: '', description: '', photo: '', logo: '', whatsapp: '', link: '', eje: '', members: [] }
 
 const SECTIONS = [
   { key: 'resumen', label: 'Resumen', Icon: LayoutDashboard },
@@ -251,6 +251,7 @@ export default function AdminPage() {
         photo: full.photo,
         logo: full.logo || '',
         whatsapp: full.whatsapp || '',
+        link: full.link || '',
         eje: full.eje || '',
         members: (full.members || []).map(m => ({ nombre: m.nombre || '', carrera: m.carrera || '', correo: m.correo || '' })),
       })
@@ -574,6 +575,10 @@ export default function AdminPage() {
                     <div>
                       <label className="block text-xs font-medium mb-1">WhatsApp</label>
                       <input type="tel" value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="0991234567" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Link del proyecto</label>
+                      <input type="url" value={form.link} onChange={e => setForm({ ...form, link: e.target.value })} placeholder="https://github.com/..." className={inputClass} />
                     </div>
                   </div>
                     <div>
