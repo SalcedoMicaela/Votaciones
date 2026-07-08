@@ -1518,7 +1518,7 @@ export default function AdminPage() {
       </div>
 
       {/* Hoja imprimible (solo al imprimir) */}
-      <style>{`@media print{@page{margin:0.5in}.print-page{page-break-after:always;display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:0.4in 0.3in;box-sizing:border-box}.print-page:last-child{page-break-after:auto}.print-grid-4{display:grid;grid-template-columns:1fr 1fr;gap:0.3in;width:100%;max-width:7in}}`}</style>
+      <style>{`@media print{@page{margin:0.5in}.print-page{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:0.4in 0.3in;box-sizing:border-box}.print-page+.print-page{page-break-before:always}.print-grid-4{display:grid;grid-template-columns:1fr 1fr;gap:0.3in;width:100%;max-width:7in}}`}</style>
       <div className="hidden print:block">
         {printMode === 'judge' ? (
           <div className="flex flex-col items-center justify-center min-h-screen -mt-20">
