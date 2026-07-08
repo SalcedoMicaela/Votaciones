@@ -4,6 +4,7 @@ import TeamCard from '../components/TeamCard'
 import LogoBar from '../components/LogoBar'
 import socket from '../socket'
 import { ejeInfo } from '../utils/eje'
+import { useEjes } from '../utils/EjeContext'
 import { Search } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -19,6 +20,7 @@ function getDeviceId() {
 }
 
 export default function VotePage() {
+  const { ejes } = useEjes()
   const [teams, setTeams] = useState([])
   const [votingActive, setVotingActive] = useState(false)
   const [showPanel, setShowPanel] = useState(true)
@@ -141,11 +143,10 @@ export default function VotePage() {
     }
   }
 
-  // Filtros de eje generados a partir de los datos (no fijos en el código)
   const ejeFilters = useMemo(() => {
     const map = new Map()
     teams.forEach(t => {
-      const info = ejeInfo(t.eje)
+      const info = ejeInfo(t.eje, ejes)
       if (info.num > 0) {
         const cur = map.get(info.num) || { num: info.num, label: info.label, Icon: info.Icon, count: 0 }
         cur.count++
@@ -153,7 +154,7 @@ export default function VotePage() {
       }
     })
     return [...map.values()].sort((a, b) => a.num - b.num)
-  }, [teams])
+  }, [teams, ejes])
 
   const filters = [
     { key: 'all', label: 'Todos', Icon: null, count: teams.length },
@@ -163,7 +164,7 @@ export default function VotePage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return teams.filter(t => {
-      const ejeOk = filter === 'all' || String(ejeInfo(t.eje).num) === filter
+      const ejeOk = filter === 'all' || String(ejeInfo(t.eje, ejes).num) === filter
       const nameOk = !q || t.name.toLowerCase().includes(q)
       return ejeOk && nameOk
     })

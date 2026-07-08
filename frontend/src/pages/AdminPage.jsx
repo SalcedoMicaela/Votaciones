@@ -5,8 +5,9 @@ import { QRCode } from 'react-qr-code'
 import socket from '../socket'
 import { resizeImage } from '../utils/image'
 import { whatsappLink, downloadQr, safeFilename } from '../utils/qr'
-import { ejeInfo } from '../utils/eje'
-import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy, Eye, EyeOff, FileText } from 'lucide-react'
+import { ejeInfo, fromDoc, ICON_MAP, ICON_NAMES, COLOR_MAP } from '../utils/eje'
+import { useEjes } from '../utils/EjeContext'
+import { LayoutDashboard, Users, Vote, QrCode, Settings, Camera, Check, Search, AlertTriangle, RotateCcw, UserCog, ClipboardList, Layers, Trophy, Eye, EyeOff, FileText, Tags } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -22,10 +23,12 @@ const SECTIONS = [
   { key: 'rubrica', label: 'Rúbrica', Icon: ClipboardList },
   { key: 'calificaciones', label: 'Calificaciones', Icon: FileText },
   { key: 'qr', label: 'QR y enlaces', Icon: QrCode },
+  { key: 'ejes', label: 'Ejes temáticos', Icon: Tags },
   { key: 'config', label: 'Configuración', Icon: Settings },
 ]
 
 export default function AdminPage() {
+  const { ejes: ejesCtx, refresh: refreshEjes } = useEjes()
   const [authenticated, setAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
   const [section, setSection] = useState('resumen')
@@ -50,6 +53,8 @@ export default function AdminPage() {
   const [query, setQuery] = useState('')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [ejeFilter, setEjeFilter] = useState('all')
+  const [ejeForm, setEjeForm] = useState({ name: '', shortName: '', icon: 'ShieldCheck', color: 'sky', order: 0 })
+  const [editingEjeId, setEditingEjeId] = useState(null)
   // Fases / jurados / rúbrica
   const [judges, setJudges] = useState([])
   const [questions, setQuestions] = useState([])
@@ -451,11 +456,12 @@ export default function AdminPage() {
   const filteredTeams = useMemo(() => {
     const q = query.trim().toLowerCase()
     return teams.filter(t => {
-      const ejeOk = ejeFilter === 'all' || String(ejeInfo(t.eje).num) === ejeFilter
+      const info = ejeInfo(t.eje, ejesCtx)
+      const ejeOk = ejeFilter === 'all' || String(info.num) === ejeFilter
       const nameOk = !q || t.name.toLowerCase().includes(q)
       return ejeOk && nameOk
     })
-  }, [teams, query, ejeFilter])
+  }, [teams, query, ejeFilter, ejesCtx])
 
   if (!authenticated) {
     return <AdminLogin onLogin={(pwd) => { setPassword(pwd); setAuthenticated(true) }} />
@@ -560,8 +566,9 @@ export default function AdminPage() {
                       <label className="block text-xs font-medium mb-1">Eje temático</label>
                       <select value={form.eje} onChange={e => setForm({ ...form, eje: e.target.value })} className={inputClass}>
                         <option value="">Sin eje</option>
-                        <option value="Eje 1: Seguridad y Defensa Tecnológica">Eje 1: Seguridad y Defensa Tecnológica</option>
-                        <option value="Eje 2: Sostenibilidad y Green University">Eje 2: Sostenibilidad y Green University</option>
+                        {ejesCtx.map(e => (
+                          <option key={e.id} value={e.name}>{e.shortName || e.name}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -569,10 +576,13 @@ export default function AdminPage() {
                       <input type="tel" value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="0991234567" className={inputClass} />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium mb-1">Descripción</label>
-                    <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="4" />
-                  </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Descripción</label>
+                      <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className={inputClass} rows="4" placeholder="Docente: [Nombre del docente]
+
+[Descripción breve del proyecto]" />
+                      <p className="text-[11px] text-gray-400 mt-1">Escribe primero <strong>Docente:</strong> y el nombre, luego un salto de línea, y la descripción del proyecto.</p>
+                    </div>
 
                   <div className="flex flex-wrap gap-4 items-end">
                     <div>
@@ -610,7 +620,7 @@ export default function AdminPage() {
               </div>
 
               {/* Lista en grid responsive */}
-              <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} />
+              <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} ejes={ejesCtx} />
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredTeams.map(team => (
                   <div key={team.id} className="bg-white p-3 sm:p-4 rounded-2xl shadow-sm flex gap-3 items-start">
@@ -842,7 +852,7 @@ export default function AdminPage() {
                 )}
               </div>
 
-              <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} />
+              <TeamFilterBar query={query} setQuery={setQuery} ejeFilter={ejeFilter} setEjeFilter={setEjeFilter} count={filteredTeams.length} total={teams.length} ejes={ejesCtx} />
 
               <div className="space-y-4">
                 {filteredTeams.map(team => {
@@ -982,6 +992,135 @@ export default function AdminPage() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* ===== EJES TEMÁTICOS ===== */}
+          {section === 'ejes' && (
+            <div className="space-y-6 max-w-2xl">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h1 className="text-2xl font-bold text-gray-800">Ejes temáticos ({ejesCtx.length})</h1>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl shadow-sm">
+                <h2 className="font-semibold mb-3">{editingEjeId ? 'Editar eje' : 'Agregar eje'}</h2>
+                {editingEjeId && (
+                  <button type="button" onClick={() => { setEjeForm({ name: '', shortName: '', icon: 'ShieldCheck', color: 'sky', order: 0 }); setEditingEjeId(null) }}
+                    className="text-xs text-gray-500 hover:underline mb-3 block">Cancelar edición</button>
+                )}
+                <form onSubmit={async e => {
+                  e.preventDefault()
+                  try {
+                    if (editingEjeId) {
+                      await axios.put(`${API}/api/admin/ejes/${editingEjeId}`, ejeForm, authHeaders())
+                      showToast('Eje actualizado')
+                    } else {
+                      await axios.post(`${API}/api/admin/ejes`, ejeForm, authHeaders())
+                      showToast('Eje agregado')
+                    }
+                    setEjeForm({ name: '', shortName: '', icon: 'ShieldCheck', color: 'sky', order: 0 })
+                    setEditingEjeId(null)
+                    refreshEjes()
+                  } catch (err) { showToast(err.response?.data?.error || 'Error al guardar') }
+                }} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Nombre completo</label>
+                      <input value={ejeForm.name} onChange={e => setEjeForm({ ...ejeForm, name: e.target.value })}
+                        placeholder="Eje 1: Seguridad y Defensa Tecnológica" className={inputClass} required />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Nombre corto</label>
+                      <input value={ejeForm.shortName} onChange={e => setEjeForm({ ...ejeForm, shortName: e.target.value })}
+                        placeholder="Seguridad y Defensa" className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Icono</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['ShieldCheck', 'Leaf', 'Lightbulb', 'Cog', 'Globe', 'Heart', 'Star', 'Zap', 'Cpu', 'TreePine', 'BookOpen', 'Palmtree', 'Droplets', 'Sun', 'Shield', 'Sparkles'].map(iconName => {
+                          const Icon = ICON_MAP[iconName]
+                          return (
+                            <button type="button" key={iconName}
+                              onClick={() => setEjeForm({ ...ejeForm, icon: iconName })}
+                              className={`p-2 rounded-lg border-2 transition-all ${ejeForm.icon === iconName ? 'border-espe-500 bg-espe-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'}`}
+                              title={iconName}
+                            >
+                              {Icon && <Icon className="w-5 h-5 text-gray-700" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Color</label>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(COLOR_MAP).map(([key, val]) => (
+                          <button type="button" key={key}
+                            onClick={() => setEjeForm({ ...ejeForm, color: key })}
+                            className={`w-8 h-8 rounded-full border-2 transition-all ${ejeForm.color === key ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                            style={{ background: key === 'sky' ? '#38bdf8' : key === 'emerald' ? '#34d399' : key === 'purple' ? '#a78bfa' : key === 'amber' ? '#fbbf24' : key === 'rose' ? '#fb7185' : key === 'indigo' ? '#818cf8' : key === 'cyan' ? '#22d3ee' : key === 'orange' ? '#fb923c' : key === 'teal' ? '#2dd4bf' : key === 'pink' ? '#f472b6' : '#38bdf8' }}
+                            title={key}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium mb-1">Orden</label>
+                      <input type="number" min="0" value={ejeForm.order}
+                        onChange={e => setEjeForm({ ...ejeForm, order: Number(e.target.value) })}
+                        className={inputClass} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button type="submit" className="bg-espe-600 text-white px-5 py-2 rounded-lg hover:bg-espe-700 transition-colors font-semibold text-sm">
+                      {editingEjeId ? 'Guardar cambios' : 'Agregar'}
+                    </button>
+                    {ejeForm.name && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span>Vista previa:</span>
+                        {(() => {
+                          const preview = fromDoc(ejeForm)
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${preview.badge}`}>
+                              {preview.Icon && <preview.Icon className="w-3.5 h-3.5" />} {preview.label}
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              <div className="space-y-2">
+                {ejesCtx.map(e => {
+                  const info = fromDoc(e)
+                  return (
+                    <div key={e.id} className="bg-white p-4 rounded-xl shadow-sm flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${info.badge}`}>
+                          {info.Icon && <info.Icon className="w-3.5 h-3.5" />} {info.label}
+                        </span>
+                        <span className="text-xs text-gray-400">Orden: {e.order}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => {
+                          setEjeForm({ name: e.name, shortName: e.shortName || '', icon: e.icon || 'ShieldCheck', color: e.color || 'sky', order: e.order || 0 })
+                          setEditingEjeId(e.id)
+                        }} className="text-espe-700 hover:underline text-xs font-medium">Editar</button>
+                        <button onClick={async () => {
+                          if (!confirm('¿Eliminar este eje temático?')) return
+                          try { await axios.delete(`${API}/api/admin/ejes/${e.id}`, authHeaders()); refreshEjes(); showToast('Eje eliminado') }
+                          catch (err) { showToast(err.response?.data?.error || 'Error') }
+                        }} className="text-red-600 hover:underline text-xs font-medium">Eliminar</button>
+                      </div>
+                    </div>
+                  )
+                })}
+                {ejesCtx.length === 0 && <p className="text-gray-400 text-center py-6 bg-white rounded-xl">No hay ejes temáticos. Agrega el primero.</p>}
               </div>
             </div>
           )}
@@ -1500,7 +1639,7 @@ function JudgeCard({ judge, rawPassword, onDelete }) {
   )
 }
 
-function TeamFilterBar({ query, setQuery, ejeFilter, setEjeFilter, count, total }) {
+function TeamFilterBar({ query, setQuery, ejeFilter, setEjeFilter, count, total, ejes }) {
   return (
     <div className="flex flex-col sm:flex-row gap-3 mb-4">
       <div className="relative flex-1">
@@ -1518,8 +1657,9 @@ function TeamFilterBar({ query, setQuery, ejeFilter, setEjeFilter, count, total 
         className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-espe-400"
       >
         <option value="all">Todos los ejes</option>
-        <option value="1">Seguridad y Defensa</option>
-        <option value="2">Sostenibilidad</option>
+        {(ejes || []).map(e => (
+          <option key={e.id} value={String(e.order)}>{e.shortName || e.name}</option>
+        ))}
       </select>
       <span className="hidden sm:flex items-center text-xs text-gray-400 whitespace-nowrap">{count} de {total}</span>
     </div>

@@ -1,12 +1,25 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ejeInfo } from '../utils/eje'
+import { useEjes } from '../utils/EjeContext'
+import { BookOpen } from 'lucide-react'
+
+function parseDescription(desc) {
+  if (!desc) return { docente: null, descripcion: '' }
+  const match = desc.match(/^Docente:\s*(.+?)(?:\n\n|\n|$)([\s\S]*)$/i)
+  if (match) {
+    return { docente: match[1].trim(), descripcion: match[2].trim() }
+  }
+  return { docente: null, descripcion: desc }
+}
 
 export default function TeamCard({ team, onVote, disabled, voted, hideVoteButton }) {
+  const { ejes } = useEjes()
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
-  const isLong = team.description && team.description.length > 80
   const members = team.members || []
-  const eje = ejeInfo(team.eje)
+  const eje = ejeInfo(team.eje, ejes)
+  const { docente, descripcion } = useMemo(() => parseDescription(team.description), [team.description])
+  const isLong = descripcion.length > 100
 
   return (
     <div
@@ -47,30 +60,39 @@ export default function TeamCard({ team, onVote, disabled, voted, hideVoteButton
         )}
         <h3 className="text-xl font-bold mb-1 leading-tight">{team.name}</h3>
 
-        <div className="mb-3">
-          <div
-            className="overflow-hidden transition-all duration-500 ease-in-out"
-            style={{ maxHeight: showFullDesc ? '600px' : '2.5em' }}
-          >
-            <p className="text-gray-500 text-sm leading-relaxed whitespace-pre-line">
-              {team.description || 'Sin descripción'}
-            </p>
+        {docente && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+            <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="truncate">{docente}</span>
           </div>
-          {isLong && (
-            <button
-              onClick={() => setShowFullDesc(!showFullDesc)}
-              className="mt-1.5 w-full py-2 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-700 transition-all flex items-center justify-center gap-1.5"
+        )}
+
+        {descripcion && (
+          <div className="mb-3">
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: showFullDesc ? '600px' : '3.6em' }}
             >
-              <svg
-                className={`w-4 h-4 transition-transform duration-300 ${showFullDesc ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              <p className="text-gray-500 text-sm leading-relaxed whitespace-pre-line">
+                {descripcion}
+              </p>
+            </div>
+            {isLong && (
+              <button
+                onClick={() => setShowFullDesc(!showFullDesc)}
+                className="mt-1.5 w-full py-2 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-700 transition-all flex items-center justify-center gap-1.5"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-              {showFullDesc ? 'Ocultar' : 'Ver más'}
-            </button>
-          )}
-        </div>
+                <svg
+                  className={`w-4 h-4 transition-transform duration-300 ${showFullDesc ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+                {showFullDesc ? 'Ocultar' : 'Ver más'}
+              </button>
+            )}
+          </div>
+        )}
 
         {members.length > 0 && (
           <div className="mb-4">

@@ -4,6 +4,7 @@ import axios from 'axios'
 import socket from '../socket'
 import LogoBar from '../components/LogoBar'
 import { ejeInfo } from '../utils/eje'
+import { useEjes } from '../utils/EjeContext'
 import { SearchX } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -20,6 +21,7 @@ function getDeviceId() {
 
 export default function VoteTeamPage() {
   const { teamId } = useParams()
+  const { ejes } = useEjes()
   const [team, setTeam] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [votingActive, setVotingActive] = useState(false)
@@ -105,7 +107,7 @@ export default function VoteTeamPage() {
     )
   }
 
-  const eje = ejeInfo(team.eje)
+  const eje = ejeInfo(team.eje, ejes)
   const votedThis = hasVoted && votedTeamId === team.id
   const votedOther = hasVoted && votedTeamId !== team.id
 

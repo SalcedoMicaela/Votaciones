@@ -59,6 +59,8 @@ async function connect() {
     await ensureIndex(db.collection('scores'), { judgeId: 1, teamId: 1, phase: 1 }, { unique: true })
     await ensureIndex(db.collection('scores'), { phase: 1, teamId: 1, total: 1 })
 
+    await ensureIndex(db.collection('ejes'), { order: 1 })
+
     await ensureIndex(db.collection('teams'), { uploadToken: 1 }, { unique: true, sparse: true })
     await ensureIndex(db.collection('teams'), { createdAt: 1, _id: 1 })
     await ensureIndex(db.collection('teams'), { phaseReached: 1 })

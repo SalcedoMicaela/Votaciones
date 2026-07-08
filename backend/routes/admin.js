@@ -504,6 +504,66 @@ router.delete('/judges/:id', adminAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// ===================== EJES TEMÁTICOS =====================
+function mapEje(doc) {
+  return {
+    id: doc._id.toString(),
+    name: doc.name,
+    shortName: doc.shortName || '',
+    icon: doc.icon || 'ShieldCheck',
+    color: doc.color || 'sky',
+    order: doc.order || 0,
+  }
+}
+
+router.get('/ejes', async (req, res) => {
+  try {
+    const ejes = await getDb().collection('ejes').find().sort({ order: 1, _id: 1 }).toArray()
+    res.json(ejes.map(mapEje))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.post('/ejes', adminAuth, async (req, res) => {
+  const name = String(req.body.name || '').trim()
+  if (!name) return res.status(400).json({ error: 'El nombre del eje es requerido' })
+  try {
+    const doc = {
+      name,
+      shortName: String(req.body.shortName || name).trim(),
+      icon: String(req.body.icon || 'ShieldCheck').trim(),
+      color: String(req.body.color || 'sky').trim(),
+      order: Number(req.body.order) || 0,
+      createdAt: new Date(),
+    }
+    const r = await getDb().collection('ejes').insertOne(doc)
+    res.json(mapEje({ ...doc, _id: r.insertedId }))
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.put('/ejes/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Eje no encontrado' })
+  try {
+    const set = {}
+    if (req.body.name !== undefined) set.name = String(req.body.name).trim()
+    if (req.body.shortName !== undefined) set.shortName = String(req.body.shortName).trim()
+    if (req.body.icon !== undefined) set.icon = String(req.body.icon).trim()
+    if (req.body.color !== undefined) set.color = String(req.body.color).trim()
+    if (req.body.order !== undefined) set.order = Number(req.body.order)
+    await getDb().collection('ejes').updateOne({ _id: new ObjectId(id) }, { $set: set })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
+router.delete('/ejes/:id', adminAuth, async (req, res) => {
+  const { id } = req.params
+  if (!ObjectId.isValid(id)) return res.status(404).json({ error: 'Eje no encontrado' })
+  try {
+    await getDb().collection('ejes').deleteOne({ _id: new ObjectId(id) })
+    res.json({ ok: true })
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
+
 // ===================== FASES / RANKING =====================
 router.get('/phase', async (req, res) => {
   try {
@@ -607,7 +667,7 @@ router.get('/dashboard-data', async (req, res) => {
     const db = getDb()
     const phaseData = await getCurrentPhase(db)
     const imageBase = `${req.protocol}://${req.get('host')}`
-    const [teams, settingsList, judges, questions, weights, counts, scoresDetail] = await Promise.all([
+    const [teams, settingsList, judges, questions, weights, counts, scoresDetail, ejes] = await Promise.all([
       db.collection('teams').aggregate([
         { $sort: { createdAt: 1, _id: 1 } },
         {
@@ -629,6 +689,7 @@ router.get('/dashboard-data', async (req, res) => {
       getWeights(db),
       db.collection('votes').aggregate([{ $match: { phase: { $lte: phaseData } } }, { $group: { _id: '$teamId', count: { $sum: 1 } } }]).toArray(),
       getScoresDetail(db, phaseData, imageBase),
+      db.collection('ejes').find().sort({ order: 1, _id: 1 }).toArray(),
     ])
 
     const activeTeams = teams.filter(t => isActive(t, phaseData))
@@ -660,6 +721,7 @@ router.get('/dashboard-data', async (req, res) => {
       })),
       weights,
       scoresDetail,
+      ejes: ejes.map(mapEje),
     })
   } catch (err) {
     res.status(500).json({ error: err.message })

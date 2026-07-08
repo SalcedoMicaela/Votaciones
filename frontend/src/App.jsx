@@ -10,6 +10,7 @@ import VoteTeamPage from './pages/VoteTeamPage'
 import JudgePage from './pages/JudgePage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import Logo from './components/Logo'
+import { EjeProvider } from './utils/EjeContext'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 const navClass = ({ isActive }) =>
@@ -46,6 +47,7 @@ export default function App() {
       </header>
 
       <main className="flex-1 w-full max-w-6xl mx-auto p-4 sm:p-6">
+        <EjeProvider>
         <Routes>
           <Route path="/" element={<VotePage />} />
           <Route path="/admin" element={<AdminPage />} />
@@ -56,6 +58,7 @@ export default function App() {
           <Route path="/jurado/:teamId" element={<JudgePage />} />
           <Route path="/clasificacion" element={<LeaderboardPage />} />
         </Routes>
+        </EjeProvider>
       </main>
 
       <footer className="border-t border-gray-100 bg-white mt-8 print:hidden">

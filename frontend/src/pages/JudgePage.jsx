@@ -4,6 +4,7 @@ import axios from 'axios'
 import LogoBar from '../components/LogoBar'
 import socket from '../socket'
 import { ejeInfo } from '../utils/eje'
+import { useEjes } from '../utils/EjeContext'
 import { LogOut, Check, ClipboardList, Eye, EyeOff, Menu, X } from 'lucide-react'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -90,6 +91,7 @@ function JudgeLogin({ onLogin }) {
 }
 
 function JudgeScore({ token, name, onLogout, teamId }) {
+  const { ejes } = useEjes()
   const [menuOpen, setMenuOpen] = useState(false)
   const [phase, setPhase] = useState(1)
   const [questions, setQuestions] = useState([])
@@ -207,7 +209,7 @@ function JudgeScore({ token, name, onLogout, teamId }) {
   const calificados = teams.filter(t => t.myScore).length
   const selectedTeam = teams.find(t => t.id === selectedTeamId)
   const total = teamTotal()
-  const eje = selectedTeam ? ejeInfo(selectedTeam.eje) : { num: 0, label: '' }
+  const eje = selectedTeam ? ejeInfo(selectedTeam.eje, ejes) : { num: 0, label: '' }
 
   return (
     <div>

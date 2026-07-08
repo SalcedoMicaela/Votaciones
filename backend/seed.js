@@ -142,6 +142,16 @@ async function run() {
   const db = getDb()
   const teams = db.collection('teams')
 
+  // Ejes temáticos por defecto
+  const ejesCount = await db.collection('ejes').countDocuments()
+  if (ejesCount === 0) {
+    await db.collection('ejes').insertMany([
+      { name: 'Eje 1: Seguridad y Defensa Tecnológica', shortName: 'Seguridad y Defensa', icon: 'ShieldCheck', color: 'sky', order: 1, createdAt: new Date() },
+      { name: 'Eje 2: Sostenibilidad y Green University', shortName: 'Sostenibilidad', icon: 'Leaf', color: 'emerald', order: 2, createdAt: new Date() },
+    ])
+    console.log('✓ Ejes temáticos por defecto insertados')
+  }
+
   const force = process.argv.includes('--force')
   const count = await teams.countDocuments()
 
