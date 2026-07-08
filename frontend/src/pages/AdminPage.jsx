@@ -1518,41 +1518,37 @@ export default function AdminPage() {
       </div>
 
       {/* Hoja imprimible (solo al imprimir) */}
-      <style>{`@media print{@page{margin:0.5in}.print-page{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:100vh;padding:0.4in 0.3in;box-sizing:border-box}.print-page+.print-page{page-break-before:always}.print-grid-4{display:grid;grid-template-columns:1fr 1fr;gap:0.3in;width:100%;max-width:7in}}`}</style>
+      <style>{`@media print{@page{margin:0.3in}.print-page{page-break-after:always;padding:0.3in 0}.print-page:last-child{page-break-after:auto}.print-grid-4{display:grid;grid-template-columns:1fr 1fr;gap:0.3in;width:100%;max-width:7in;margin:0 auto}.print-card{border:2px solid #e5e7eb;border-radius:12px;padding:0.25in;display:flex;flex-direction:column;align-items:center;justify-content:center;break-inside:avoid}.print-card-judge{border-color:#d8b4fe}}`}</style>
       <div className="hidden print:block">
         {printMode === 'judge' ? (
-          <div className="flex flex-col items-center justify-center min-h-screen -mt-20">
-            <h2 className="text-center text-3xl font-bold mb-2">QR acceso jurados</h2>
-            <p className="text-center text-sm text-gray-500 mb-8">Cada jurado escanea para acceder al panel de calificación</p>
-            <div className="border-2 border-gray-300 rounded-xl p-8 bg-white shadow-lg">
-              <QRCode value={`${FRONTEND_URL}/jurado`} size={280} className="mx-auto" />
-            </div>
-            <p className="mt-6 text-sm text-gray-400">{FRONTEND_URL}/jurado</p>
+          <div className="print-page">
+            <h2 className="text-center text-2xl font-bold mb-2">QR acceso jurados</h2>
+            <p className="text-center text-sm text-gray-500 mb-6">Cada jurado escanea para acceder al panel de calificación</p>
+            <QRCode value={`${FRONTEND_URL}/jurado`} size={240} className="mx-auto" />
+            <p className="mt-4 text-sm text-gray-400">{FRONTEND_URL}/jurado</p>
           </div>
         ) : printMode === 'general' ? (
-          <div className="flex flex-col items-center justify-center min-h-screen -mt-20">
-            <h2 className="text-center text-3xl font-bold mb-2">QR votación general</h2>
-            <p className="text-center text-sm text-gray-500 mb-8">Escanea para ir a la página principal de votación</p>
-            <div className="border-2 border-gray-300 rounded-xl p-8 bg-white shadow-lg">
-              <QRCode value={FRONTEND_URL} size={280} className="mx-auto" />
-            </div>
-            <p className="mt-6 text-sm text-gray-400">{FRONTEND_URL}</p>
+          <div className="print-page">
+            <h2 className="text-center text-2xl font-bold mb-2">QR votación general</h2>
+            <p className="text-center text-sm text-gray-500 mb-6">Escanea para ir a la página principal de votación</p>
+            <QRCode value={FRONTEND_URL} size={240} className="mx-auto" />
+            <p className="mt-4 text-sm text-gray-400">{FRONTEND_URL}</p>
           </div>
         ) : printMode === 'judge-team' ? (
           <>
             {chunks(teams, 4).map((batch, i) => (
               <div key={i} className="print-page">
                 {i === 0 && (
-                  <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">QR calificación por equipo</h2>
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-800">QR calificación por equipo</h2>
                     <p className="text-xs text-gray-500">Cada jurado escanea el QR del equipo que debe calificar</p>
                   </div>
                 )}
                 <div className="print-grid-4">
                   {batch.map(team => (
-                    <div key={team.id} className="text-center border-2 border-purple-200 rounded-xl p-4 bg-white shadow-sm flex flex-col items-center justify-center" style={{ minHeight: '2.2in' }}>
+                    <div key={team.id} className="print-card print-card-judge">
                       {(team.logo || team.photo) && (
-                        <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-9 w-9 object-contain mx-auto mb-2 rounded-full bg-gray-50 ring-1 ring-purple-100" />
+                        <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-8 w-8 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
                       )}
                       <p className="font-semibold text-sm mb-2 truncate max-w-full px-2">{team.name}</p>
                       <QRCode value={`${FRONTEND_URL}/jurado/${team.id}`} size={110} className="mx-auto" />
@@ -1567,8 +1563,8 @@ export default function AdminPage() {
             {chunks(teams, 4).map((batch, i) => (
               <div key={i} className="print-page">
                 {i === 0 && (
-                  <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">
+                  <div className="text-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-800">
                       {printMode === 'vote' ? 'QR voto directo por equipo' : 'QR subida de imágenes'}
                     </h2>
                     <p className="text-xs text-gray-500">
@@ -1582,15 +1578,15 @@ export default function AdminPage() {
                   {batch.map(team => {
                     const qrValue = printMode === 'vote' ? voteUrl(team.id) : (links[team.id]?.token ? uploadUrl(team.id) : null)
                     return (
-                      <div key={team.id} className="text-center border-2 border-gray-200 rounded-xl p-4 bg-white shadow-sm flex flex-col items-center justify-center" style={{ minHeight: '2.2in' }}>
+                      <div key={team.id} className="print-card">
                         {(team.logo || team.photo) && (
-                          <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-9 w-9 object-contain mx-auto mb-2 rounded-full bg-gray-50 ring-1 ring-gray-200" />
+                          <img src={team.logo || team.photo} alt={team.name} loading="lazy" className="h-8 w-8 object-contain mx-auto mb-2 rounded-full bg-gray-50" />
                         )}
                         <p className="font-semibold text-sm mb-2 truncate max-w-full px-2">{team.name}</p>
                         {qrValue ? (
                           <QRCode value={qrValue} size={110} className="mx-auto" />
                         ) : (
-                          <p className="text-xs text-gray-400 py-8">sin link</p>
+                          <p className="text-xs text-gray-400 py-6">sin link</p>
                         )}
                       </div>
                     )
