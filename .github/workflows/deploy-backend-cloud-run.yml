@@ -90,7 +90,7 @@ jobs:
             --max-instances=10 \
             --timeout=300 \
             --update-env-vars="NODE_ENV=production,MONGO_DB=${MONGO_DB}" \
-            --update-secrets="MONGO=MONGO:latest,ADMIN_PASSWORD=ADMIN_PASSWORD:latest"
+            --update-secrets="MONGO=MONGO:latest,ADMIN_PASSWORD=ADMIN_PASSWORD:latest,CLOUDINARY_URL=CLOUDINARY_URL:latest"
 
       - name: Fase 9 - Obtener URL Publica Del Backend
         id: backend-url

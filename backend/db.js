@@ -26,9 +26,23 @@ let db = null
 let connecting = null
 
 async function ensureIndex(collection, keys, options = {}) {
-  const indexes = await collection.indexes()
+  let indexes = []
+  try {
+    indexes = await collection.indexes()
+  } catch (err) {
+    if (err.codeName !== 'NamespaceNotFound' && err.code !== 26) throw err
+  }
   const exists = indexes.some(i => JSON.stringify(i.key) === JSON.stringify(keys))
   if (!exists) await collection.createIndex(keys, options)
+}
+
+async function getIndexNames(collection) {
+  try {
+    return (await collection.indexes()).map(i => i.name)
+  } catch (err) {
+    if (err.codeName !== 'NamespaceNotFound' && err.code !== 26) throw err
+    return []
+  }
 }
 
 async function connect() {
@@ -45,7 +59,7 @@ async function connect() {
       console.warn('MongoDB pool cleared - intentando reconectar...')
     })
 
-    const voteIdx = (await db.collection('votes').indexes()).map(i => i.name)
+    const voteIdx = await getIndexNames(db.collection('votes'))
     for (const n of ['ip_1', 'email_1', 'deviceId_1']) {
       if (voteIdx.includes(n)) await db.collection('votes').dropIndex(n)
     }
@@ -58,8 +72,6 @@ async function connect() {
     await ensureIndex(db.collection('judges'), { token: 1 }, { unique: true, sparse: true })
     await ensureIndex(db.collection('scores'), { judgeId: 1, teamId: 1, phase: 1 }, { unique: true })
     await ensureIndex(db.collection('scores'), { phase: 1, teamId: 1, total: 1 })
-
-    await ensureIndex(db.collection('ejes'), { order: 1 })
 
     await ensureIndex(db.collection('teams'), { uploadToken: 1 }, { unique: true, sparse: true })
     await ensureIndex(db.collection('teams'), { createdAt: 1, _id: 1 })
