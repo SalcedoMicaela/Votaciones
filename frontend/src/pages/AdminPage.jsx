@@ -29,8 +29,8 @@ const SECTIONS = [
 
 export default function AdminPage() {
   const { ejes: ejesCtx, refresh: refreshEjes } = useEjes()
-  const [authenticated, setAuthenticated] = useState(false)
-  const [password, setPassword] = useState('')
+  const [authenticated, setAuthenticated] = useState(() => !!sessionStorage.getItem('admin_pwd'))
+  const [password, setPassword] = useState(() => sessionStorage.getItem('admin_pwd') || '')
   const [section, setSection] = useState('resumen')
   const [teams, setTeams] = useState([])
   const [links, setLinks] = useState({})
@@ -74,6 +74,25 @@ export default function AdminPage() {
   const [weightForm, setWeightForm] = useState({ judgeMax: 18, voteMax: 2 })
   const [scorePhase, setScorePhase] = useState(1)
   const [scoreData, setScoreData] = useState({ judges: [], questions: [], teams: [] })
+
+  // Guarda sesión para que no se cierre al cambiar de ruta
+  useEffect(() => {
+    if (authenticated && password) sessionStorage.setItem('admin_pwd', password)
+    if (!authenticated) sessionStorage.removeItem('admin_pwd')
+  }, [authenticated, password])
+
+  // Valida la sesión guardada al montar (por si la contraseña cambió en el servidor)
+  useEffect(() => {
+    const saved = sessionStorage.getItem('admin_pwd')
+    if (saved && !authenticated) {
+      axios.post(`${API}/api/admin/login`, { password: saved })
+        .then(() => {
+          setPassword(saved)
+          setAuthenticated(true)
+        })
+        .catch(() => sessionStorage.removeItem('admin_pwd'))
+    }
+  }, [])
 
   useEffect(() => {
     if (!authenticated) return
@@ -465,7 +484,7 @@ export default function AdminPage() {
   }, [teams, query, ejeFilter, ejesCtx])
 
   if (!authenticated) {
-    return <AdminLogin onLogin={(pwd) => { setPassword(pwd); setAuthenticated(true) }} />
+    return <AdminLogin onLogin={(pwd) => { sessionStorage.setItem('admin_pwd', pwd); setPassword(pwd); setAuthenticated(true) }} />
   }
 
   const inputClass = 'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-espe-500'
