@@ -1,4 +1,6 @@
-const cloudName = (process.env.CLOUDINARY_URL || '').split('@')[1] || ''
+function getCloudName() {
+  return (process.env.CLOUDINARY_URL || '').split('@')[1] || ''
+}
 
 function imageVersion(value) {
   return value instanceof Date ? value.getTime() : ''
@@ -12,6 +14,7 @@ function getImageUrl(updatedAt, imageBase, id, field) {
   if (!updatedAt) return ''
 
   const v = imageVersion(updatedAt) || id
+  const cloudName = getCloudName()
 
   if (cloudName) {
     return `https://res.cloudinary.com/${cloudName}/image/upload/v${v}/teams/${id}/${field}`

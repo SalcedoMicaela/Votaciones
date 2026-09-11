@@ -20,7 +20,11 @@ router.get('/teams/:id/:field', async (req, res) => {
     if (!updatedAt) return res.status(404).end()
 
     const url = getImageUrl(updatedAt, '', id, field)
-    return res.redirect(301, url)
+    // Evita loop infinito si CLOUDINARY_URL no está configurado (url apuntaría a sí mismo)
+    if (!url || url.includes(`/api/images/teams/${id}/${field}`)) {
+      return res.status(500).json({ error: 'CLOUDINARY_URL no configurado en el servidor' })
+    }
+    return res.redirect(302, url)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
