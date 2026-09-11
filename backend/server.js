@@ -22,6 +22,10 @@ app.use('/api/upload', require('./routes/upload'))
 app.use('/api/judges', require('./routes/judges'))
 app.use('/api/images', require('./routes/images'))
 
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: 'API Voting System - usa /api/health para healthcheck' })
+})
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })
