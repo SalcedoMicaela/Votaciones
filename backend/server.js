@@ -32,6 +32,7 @@ app.get('/api/health', (req, res) => {
 
 const PORT = process.env.PORT || 3000
 
+// trigger redeploy 2026-09-11 - fix image redirect
 connect().then(() => {
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)

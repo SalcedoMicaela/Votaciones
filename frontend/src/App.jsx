@@ -20,7 +20,7 @@ const navClass = ({ isActive }) =>
 
 export default function App() {
   const year = new Date().getFullYear()
-  const [showPanel, setShowPanel] = useState(true)
+  const [showPanel, setShowPanel] = useState(true) // trigger redeploy 2026-09-11
 
   useEffect(() => {
     axios.get(`${API}/api/admin/status`).then(r => setShowPanel(r.data.showPanel !== false)).catch(() => {})
