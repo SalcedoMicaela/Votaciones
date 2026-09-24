@@ -10,10 +10,10 @@ Los estudiantes votan por proyectos de emprendimiento usando su correo instituci
 
 | Capa | Tecnología |
 |------|-----------|
-| **Frontend** | React 18 + Vite + React Router v6 + Tailwind CSS |
-| **Backend** | Node.js + Express + Socket.IO |
-| **Base de datos** | MongoDB (driver nativo, sin Mongoose) |
-| **Tiempo real** | Socket.IO (actualización de votos en vivo) |
+| **Frontend** | React  + Vite + Tailwind CSS |
+| **Backend** | Node.js + Express  |
+| **Base de datos** | MongoDB |
+| **Tiempo real** | Socket.IO  |
 | **Autenticación admin** | scrypt (hash + salt, nativo de Node) |
 | **Despliegue** | Frontend → Vercel · Backend → Render |
 
